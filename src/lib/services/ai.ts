@@ -20,6 +20,8 @@ const SCAN_SYSTEM = [
   "Extract only medicines that are clearly written. Never invent a medicine, dose or time.",
   "For each medicine give: name, dosage (e.g. '500 mg' or '1 tablet'), short instructions, and times as 24-hour HH:mm.",
   "Map common patterns: once daily = 08:00; twice daily or 1-0-1 = 08:00 and 20:00; thrice daily or 1-1-1 = 08:00, 14:00, 20:00; at night = 21:00.",
+  "days lists the weekdays as numbers (0 = Sunday ... 6 = Saturday). Fill it only when the prescription names specific days (e.g. 'every Sunday' = [0]); for a daily medicine, or when the days are not written, return an empty list. Never invent days.",
+  "Always copy the frequency words from the prescription (e.g. 'once a week', 'alternate days') into instructions.",
   "If the image is not a prescription or is unreadable, return an empty list.",
 ].join(" ");
 
@@ -36,6 +38,7 @@ const SCAN_SCHEMA = {
           dosage: { type: "string" },
           instructions: { type: "string" },
           times: { type: "array", items: { type: "string", pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" } },
+          days: { type: "array", items: { type: "integer", minimum: 0, maximum: 6 } },
         },
         required: ["name", "dosage", "instructions", "times"],
       },

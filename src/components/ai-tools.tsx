@@ -6,6 +6,7 @@ import { Icon } from "./icon";
 import { medicationBody, MedicationForm, type MedicationValues } from "./medication-form";
 import { useSession } from "./session-context";
 import { fill, type MessageKey } from "@/lib/i18n";
+import { isNonDailySchedule } from "@/lib/domain/frequency";
 import type { Language } from "@/lib/domain/types";
 
 interface Draft {
@@ -13,6 +14,7 @@ interface Draft {
   dosage: string;
   instructions: string;
   times: string[];
+  days?: number[];
 }
 
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -35,8 +37,19 @@ export function draftProblems(v: MedicationValues): MessageKey[] {
   if (!v.name.trim()) problems.push("fnName");
   if (!v.dosage.trim()) problems.push("fnDosage");
   if (v.times.length === 0 || v.times.some((x) => !TIME_RE.test(x))) problems.push("fnTimes");
+  // Model-independent safety net: the text says weekly/alternate days/monthly, but the days say "every day".
+  if (v.days.length === 0 && isNonDailySchedule(`${v.dosage} ${v.instructions}`))
+    problems.push("notDailyFix");
   return problems;
 }
+
+/** The days in words, so the person sees exactly what will be saved. */
+export function daysInWords(days: number[], t: (k: MessageKey) => string): string {
+  if (days.length === 0) return t("everyDay");
+  return days.map((d) => t(WEEKDAY_KEYS[d]!)).join(", ");
+}
+
+const WEEKDAY_KEYS: MessageKey[] = ["wd0", "wd1", "wd2", "wd3", "wd4", "wd5", "wd6"];
 
 /**
  * Gemini prescription scan with a review step. One photo gives a list of drafts that stays on screen
@@ -87,7 +100,7 @@ export function PrescriptionScan({ today, onSaved }: { today: string; onSaved: (
           dosage: d.dosage,
           instructions: d.instructions,
           times: d.times,
-          days: [],
+          days: d.days ?? [],
           startDate: today,
           endDate: "",
           active: true,
@@ -198,13 +211,22 @@ export function PrescriptionScan({ today, onSaved }: { today: string; onSaved: (
                     {name} <span className="muted">{d.values.dosage}</span>
                   </h4>
                   <p>
-                    <Icon name="clock" /> {d.values.times.join(", ") || t("timeNotFound")} · {t("everyDay")}
+                    <Icon name="clock" /> {d.values.times.join(", ") || t("timeNotFound")} ·{" "}
+                    {daysInWords(d.values.days, t)}
                   </p>
                   {d.values.instructions ? <p className="muted">{d.values.instructions}</p> : null}
                   {problems.length > 0 && d.status !== "saved" ? (
                     <p className="error">
                       <Icon name="alert" />
-                      {fill(t("needsFix"), { what: problems.map((k) => t(k)).join(", ") })}
+                      {problems.includes("notDailyFix") ? `${t("notDailyFix")} ` : ""}
+                      {problems.some((k) => k !== "notDailyFix")
+                        ? fill(t("needsFix"), {
+                            what: problems
+                              .filter((k) => k !== "notDailyFix")
+                              .map((k) => t(k))
+                              .join(", "),
+                          })
+                        : ""}
                     </p>
                   ) : null}
                   {d.status === "saved" ? (

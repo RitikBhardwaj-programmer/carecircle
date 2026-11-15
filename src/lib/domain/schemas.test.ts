@@ -70,7 +70,7 @@ describe("schemas", () => {
 
   it("medication drafts from AI are validated", () => {
     expect(medicationDraftListSchema.parse([{ name: "Amlodipine", times: ["09:00"] }])).toEqual([
-      { name: "Amlodipine", dosage: "", instructions: "", times: ["09:00"] },
+      { name: "Amlodipine", dosage: "", instructions: "", times: ["09:00"], days: [] },
     ]);
     expect(medicationDraftListSchema.safeParse([{ name: "", times: [] }]).success).toBe(false);
     expect(medicationDraftListSchema.safeParse([{ name: "X", times: ["25:00"] }]).success).toBe(false);

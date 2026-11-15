@@ -34,7 +34,7 @@ const THREE = [
 ];
 
 /** Fake server: the scan returns `drafts`; saving `failName` fails once with a 500. */
-function fakeServer(drafts: typeof THREE, failName?: string) {
+function fakeServer(drafts: Array<(typeof THREE)[number] & { days?: number[] }>, failName?: string) {
   const posted: Array<{ name: string }> = [];
   let failed = false;
   const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
@@ -146,5 +146,42 @@ describe("prescription scan review (bug: other drafts were lost after saving one
     expect(screen.getByRole("button", { name: "Save 2 medicines" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Discard the rest" }));
     expect(screen.queryByRole("heading", { name: /Review medicines/ })).toBeNull();
+  });
+});
+
+describe("weekly medicines from a scan are never saved as every day", () => {
+  const WEEKLY = [
+    { name: "Amlodipine", dosage: "5 mg", instructions: "Morning", times: ["08:00"] },
+    { name: "Vitamin D3", dosage: "60000 IU", instructions: "Take once a week", times: ["08:00"] },
+  ];
+
+  it("a weekly draft with no days is flagged and not counted on the Save button", async () => {
+    const { posted } = fakeServer(WEEKLY);
+    await scan();
+    expect(within(card("Vitamin D3")).getByText(/not a daily medicine/)).toBeInTheDocument();
+    expect(within(card("Vitamin D3")).getByRole("checkbox")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save only Vitamin D3" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Save 1 medicine" }));
+    await waitFor(() => expect(posted.map((p) => p.name)).toEqual(["Amlodipine"]));
+  });
+
+  it("becomes saveable after a person chooses its day, and is saved with that day", async () => {
+    const { posted } = fakeServer(WEEKLY);
+    await scan();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Vitamin D3" }));
+    fireEvent.click(screen.getByLabelText("Sun"));
+    fireEvent.click(screen.getByRole("button", { name: "Update this medicine" }));
+    expect(within(card("Vitamin D3")).queryByText(/not a daily medicine/)).toBeNull();
+    expect(within(card("Vitamin D3")).getByText(/Sun/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save 2 medicines" }));
+    await waitFor(() => expect(posted).toHaveLength(2));
+    expect(posted.find((p) => p.name === "Vitamin D3")).toMatchObject({ days: [0] });
+  });
+
+  it("a weekly draft whose day came from the prescription shows it and is saveable", async () => {
+    fakeServer([{ ...WEEKLY[1]!, days: [4] }]);
+    await scan();
+    expect(within(card("Vitamin D3")).getByText(/Thu/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save 1 medicine" })).toBeEnabled();
   });
 });

@@ -26,11 +26,7 @@ export const languageSchema = z.enum(["en", "hi"]);
 export const createProfileSchema = z.object({
   elderName: trimmed(80),
   email: email.optional().nullable(),
-  timezone: z
-    .string()
-    .max(64)
-    .default("Asia/Kolkata")
-    .refine(isValidTimeZone, "Unknown time zone"),
+  timezone: z.string().max(64).default("Asia/Kolkata").refine(isValidTimeZone, "Unknown time zone"),
   language: languageSchema.default("en"),
 });
 
@@ -88,7 +84,10 @@ export const medicationSchema = z
       .default([])
       .transform((d) => [...new Set(d)].sort()),
     startDate: localDate,
-    endDate: localDate.optional().nullable().transform((v) => v ?? null),
+    endDate: localDate
+      .optional()
+      .nullable()
+      .transform((v) => v ?? null),
     active: z.boolean().default(true),
   })
   .refine((m) => !m.endDate || m.endDate >= m.startDate, {
@@ -135,7 +134,12 @@ export const assistIntentSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("answer"), reply }),
   z.object({ type: z.literal("refuse"), reply }),
   z.object({ type: z.literal("navigate"), reply, route: z.enum(ASSIST_ROUTES) }),
-  z.object({ type: z.literal("mark_dose"), reply, doseId: z.string().max(100), status: z.enum(["taken", "skipped"]) }),
+  z.object({
+    type: z.literal("mark_dose"),
+    reply,
+    doseId: z.string().max(100),
+    status: z.enum(["taken", "skipped"]),
+  }),
   z.object({
     type: z.literal("add_medication"),
     reply,
@@ -166,6 +170,18 @@ export const medicationDraftSchema = z.object({
   dosage: z.string().trim().max(60).default(""),
   instructions: z.string().trim().max(300).default(""),
   times: z.array(timeOfDay).max(8).default([]),
+  /** Weekdays 0 (Sun) to 6 (Sat); empty = every day. Invalid entries from the model are dropped, not trusted. */
+  days: z
+    .preprocess(
+      (v) =>
+        Array.isArray(v)
+          ? [...new Set(v.filter((n): n is number => Number.isInteger(n) && n >= 0 && n <= 6))].sort(
+              (a, b) => a - b,
+            )
+          : [],
+      z.array(z.number().int().min(0).max(6)).max(7),
+    )
+    .default([]),
 });
 export const medicationDraftListSchema = z.array(medicationDraftSchema).max(10);
 

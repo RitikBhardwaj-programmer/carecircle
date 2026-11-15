@@ -20,10 +20,43 @@ describe("scanPrescription (R10)", () => {
   it("returns validated drafts and saves nothing", async () => {
     const { deps } = makeDeps();
     const { elder } = await seedProfile(deps);
-    const model = fakeModel(JSON.stringify({ medications: [{ name: "Amlodipine", dosage: "5 mg", instructions: "Morning", times: ["08:00"] }] }));
+    const model = fakeModel(
+      JSON.stringify({
+        medications: [{ name: "Amlodipine", dosage: "5 mg", instructions: "Morning", times: ["08:00"] }],
+      }),
+    );
     const drafts = await scanPrescription(model, elder, png);
-    expect(drafts).toEqual([{ name: "Amlodipine", dosage: "5 mg", instructions: "Morning", times: ["08:00"] }]);
+    expect(drafts).toEqual([
+      { name: "Amlodipine", dosage: "5 mg", instructions: "Morning", times: ["08:00"], days: [] },
+    ]);
     expect(await deps.repo.listMedications(elder.profile.id)).toEqual([]);
+  });
+
+  it("keeps valid weekdays from the model and drops invalid ones (weekly medicines)", async () => {
+    const { deps } = makeDeps();
+    const { elder } = await seedProfile(deps);
+    const model = fakeModel(
+      JSON.stringify({
+        medications: [
+          {
+            name: "Vitamin D3",
+            dosage: "60000 IU",
+            instructions: "once a week",
+            times: ["08:00"],
+            days: [0],
+          },
+          {
+            name: "Alendronate",
+            dosage: "70 mg",
+            instructions: "weekly",
+            times: ["07:00"],
+            days: [9, 1, 1, -2, 3.5, "4"],
+          },
+        ],
+      }),
+    );
+    const drafts = await scanPrescription(model, elder, png);
+    expect(drafts.map((d) => d.days)).toEqual([[0], [1]]);
   });
 
   it.each([
@@ -33,7 +66,10 @@ describe("scanPrescription (R10)", () => {
   ])("turns %s into a friendly 'enter by hand' error", async (_l, reply) => {
     const { deps } = makeDeps();
     const { elder } = await seedProfile(deps);
-    await expect(scanPrescription(fakeModel(reply), elder, png)).rejects.toMatchObject({ code: "UPSTREAM", message: expect.stringMatching(/by hand/) });
+    await expect(scanPrescription(fakeModel(reply), elder, png)).rejects.toMatchObject({
+      code: "UPSTREAM",
+      message: expect.stringMatching(/by hand/),
+    });
   });
 
   it("rejects wrong file types, empty and oversized images, and view-only members", async () => {
@@ -41,9 +77,15 @@ describe("scanPrescription (R10)", () => {
     const { elder } = await seedProfile(deps);
     const viewer = await addAndLogin(deps, elder, { permission: "view" });
     const m = fakeModel("{}");
-    await expect(scanPrescription(m, elder, { mimeType: "image/gif", bytes: Buffer.from([1]) })).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(scanPrescription(m, elder, { mimeType: "image/png", bytes: Buffer.alloc(0) })).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(scanPrescription(m, elder, { mimeType: "image/png", bytes: Buffer.alloc(4 * 1024 * 1024 + 1) })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      scanPrescription(m, elder, { mimeType: "image/gif", bytes: Buffer.from([1]) }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      scanPrescription(m, elder, { mimeType: "image/png", bytes: Buffer.alloc(0) }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      scanPrescription(m, elder, { mimeType: "image/png", bytes: Buffer.alloc(4 * 1024 * 1024 + 1) }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(scanPrescription(m, viewer, png)).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(m.calls).toBe(0);
   });
@@ -62,13 +104,25 @@ describe("explainMedicine (R10)", () => {
     const { deps } = makeDeps();
     const { elder } = await seedProfile(deps);
     const model = fakeModel("What it is for: blood pressure.");
-    const first = await explainMedicine(model, elder, { name: "Amlodipine-test", dosage: "5 mg", language: "en" });
+    const first = await explainMedicine(model, elder, {
+      name: "Amlodipine-test",
+      dosage: "5 mg",
+      language: "en",
+    });
     expect(first.text.endsWith(DISCLAIMER.en)).toBe(true);
     expect(first.cached).toBe(false);
-    const second = await explainMedicine(model, elder, { name: "amlodipine-TEST", dosage: "5 MG", language: "en" });
+    const second = await explainMedicine(model, elder, {
+      name: "amlodipine-TEST",
+      dosage: "5 MG",
+      language: "en",
+    });
     expect(second.cached).toBe(true);
     expect(model.calls).toBe(1);
-    const hindi = await explainMedicine(model, elder, { name: "Amlodipine-test", dosage: "5 mg", language: "hi" });
+    const hindi = await explainMedicine(model, elder, {
+      name: "Amlodipine-test",
+      dosage: "5 mg",
+      language: "hi",
+    });
     expect(hindi.text).toContain(DISCLAIMER.hi);
     expect(model.calls).toBe(2);
   });
@@ -76,7 +130,11 @@ describe("explainMedicine (R10)", () => {
   it("maps model failures and empty answers to UPSTREAM", async () => {
     const { deps } = makeDeps();
     const { elder } = await seedProfile(deps);
-    await expect(explainMedicine(fakeModel(new Error("x")), elder, { name: "Fail1", dosage: null, language: "en" })).rejects.toMatchObject({ code: "UPSTREAM" });
-    await expect(explainMedicine(fakeModel("   "), elder, { name: "Fail2", dosage: null, language: "en" })).rejects.toMatchObject({ code: "UPSTREAM" });
+    await expect(
+      explainMedicine(fakeModel(new Error("x")), elder, { name: "Fail1", dosage: null, language: "en" }),
+    ).rejects.toMatchObject({ code: "UPSTREAM" });
+    await expect(
+      explainMedicine(fakeModel("   "), elder, { name: "Fail2", dosage: null, language: "en" }),
+    ).rejects.toMatchObject({ code: "UPSTREAM" });
   });
 });
