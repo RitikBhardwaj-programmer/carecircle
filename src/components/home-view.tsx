@@ -242,9 +242,10 @@ export function HomeView() {
       <ReadAloudButton text={spoken} lang={lang} label={t("readAloud")} stopLabel={t("stopReading")} />
       {noEmail}
       {error ? <p role="alert">{error}</p> : null}
-      <CircleSummary data={data} appts={appts} />
+      <CircleSummary data={data} appts={appts} part="cards" />
       {today}
       <Assistant onMark={mark} />
+      <CircleSummary data={data} appts={appts} part="bars" />
 
       <h2>{t("nextAppointments")}</h2>
       {appts.length === 0 ? (
@@ -267,7 +268,15 @@ export function HomeView() {
 }
 
 /** Caregiver view: "was it taken?" at a glance, then per-medicine bars. Words, not only colour. */
-function CircleSummary({ data, appts }: { data: DosesResponse; appts: Appt[] }) {
+function CircleSummary({
+  data,
+  appts,
+  part,
+}: {
+  data: DosesResponse;
+  appts: Appt[];
+  part: "cards" | "bars";
+}) {
   const { profile, t, lang } = useSession();
   const taken = data.doses.filter((d) => d.state === "taken").length;
   const missed = data.doses.filter((d) => d.state === "missed").length;
@@ -279,43 +288,45 @@ function CircleSummary({ data, appts }: { data: DosesResponse; appts: Appt[] }) 
   const nextAppt = appts[0];
   return (
     <>
-      <div className="summary-grid">
-        <section className="card summary-card" aria-labelledby="sum-today">
-          <h2 id="sum-today" className="eyebrow">
-            <Icon name="check" />
-            {t("summaryToday")}
-          </h2>
-          <p className="big-number">
-            {taken}/{data.doses.length}
-          </p>
-          <p className="muted">{fill(t("summaryTakenMissed"), { taken, missed })}</p>
-        </section>
-        <section className="card summary-card" aria-labelledby="sum-appt">
-          <h2 id="sum-appt" className="eyebrow">
-            <Icon name="calendar" />
-            {t("summaryNextAppt")}
-          </h2>
-          {nextAppt ? (
-            <>
-              <p className="h3">{formatDateTime(nextAppt.at, profile.timezone, lang)}</p>
-              <p className="muted">
-                {nextAppt.doctor}: {nextAppt.purpose}
-              </p>
-            </>
-          ) : (
-            <p className="muted">{t("noAppointments")}</p>
-          )}
-        </section>
-        <section className="card summary-card" aria-labelledby="sum-week">
-          <h2 id="sum-week" className="eyebrow">
-            <Icon name="activity" />
-            {t("summaryWeek")}
-          </h2>
-          <p className="big-number">{weekRate === null ? "—" : `${weekRate}%`}</p>
-          <p className="muted">{week.due ? `${week.taken}/${week.due}` : "—"}</p>
-        </section>
-      </div>
-      {data.adherence.length > 0 ? (
+      {part === "cards" ? (
+        <div className="summary-grid">
+          <section className="card summary-card" aria-labelledby="sum-today">
+            <h2 id="sum-today" className="eyebrow">
+              <Icon name="check" />
+              {t("summaryToday")}
+            </h2>
+            <p className="big-number">
+              {taken}/{data.doses.length}
+            </p>
+            <p className="muted">{fill(t("summaryTakenMissed"), { taken, missed })}</p>
+          </section>
+          <section className="card summary-card" aria-labelledby="sum-appt">
+            <h2 id="sum-appt" className="eyebrow">
+              <Icon name="calendar" />
+              {t("summaryNextAppt")}
+            </h2>
+            {nextAppt ? (
+              <>
+                <p className="h3">{formatDateTime(nextAppt.at, profile.timezone, lang)}</p>
+                <p className="muted">
+                  {nextAppt.doctor}: {nextAppt.purpose}
+                </p>
+              </>
+            ) : (
+              <p className="muted">{t("noAppointments")}</p>
+            )}
+          </section>
+          <section className="card summary-card" aria-labelledby="sum-week">
+            <h2 id="sum-week" className="eyebrow">
+              <Icon name="activity" />
+              {t("summaryWeek")}
+            </h2>
+            <p className="big-number">{weekRate === null ? "—" : `${weekRate}%`}</p>
+            <p className="muted">{week.due ? `${week.taken}/${week.due}` : "—"}</p>
+          </section>
+        </div>
+      ) : null}
+      {part === "bars" && data.adherence.length > 0 ? (
         <section className="card" aria-labelledby="adherence-title">
           <h2 id="adherence-title">{t("adherenceTitle")}</h2>
           <p className="muted small">{t("perMedicine")}</p>
