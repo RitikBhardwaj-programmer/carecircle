@@ -139,7 +139,7 @@ gcloud scheduler jobs create http carecircle-reminders --location asia-south1 \
 
 * **Real:** Cloud Run hosting, Firestore storage, Gemini on Vertex AI, Cloud Scheduler with OIDC, Secret Manager,
   scrypt passcodes, lockout, reminder planning and idempotency.
-* **Email:** real Gmail SMTP when `SMTP_USER` / `SMTP_PASS` are configured. Without them the mailer runs in
+* **Email:** real Gmail SMTP when `SMTP_USER` / `SMTP_PASS` are configured — the live deployment sends real email (credentials in Secret Manager; verified with a live missed-dose reminder). Without them the mailer runs in
   **dry-run mode**: it logs that an email would be sent (type only, no address or content) and the rest of the
   flow — including idempotency — runs unchanged.
 * **Hindi** covers navigation, the today view (Elder Mode), status messages and the Gemini explainer. Forms, the circle page and emails are English.
