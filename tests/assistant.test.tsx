@@ -82,6 +82,7 @@ describe("Assistant (Ask CareCircle)", () => {
     fireEvent.click(screen.getByRole("button", { name: "No" }));
     expect(onMark).not.toHaveBeenCalled();
     expect(screen.getByText("Nothing was changed.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tell me what you need")).toHaveFocus();
   });
 
   it("Yes marks the dose through the normal path", async () => {

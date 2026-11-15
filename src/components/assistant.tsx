@@ -92,6 +92,7 @@ export function Assistant({ onMark }: AssistantProps) {
   const [listening, setListening] = useState(false);
   const confirmRef = useRef<HTMLHeadingElement>(null);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Feature detection must run in the browser after hydration.
@@ -166,6 +167,8 @@ export function Assistant({ onMark }: AssistantProps) {
     if (result?.type !== "mark_dose") return;
     const { doseId, status } = result;
     setResult(null);
+    // The confirm card is gone, so focus returns to the question box instead of the page body.
+    inputRef.current?.focus();
     if (!yes) {
       setNote(t("askNothingChanged"));
       return;
@@ -195,6 +198,7 @@ export function Assistant({ onMark }: AssistantProps) {
           </p>
           <input
             id={inputId}
+            ref={inputRef}
             type="text"
             value={text}
             maxLength={300}
