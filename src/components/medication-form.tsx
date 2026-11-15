@@ -149,7 +149,7 @@ export function MedicationForm({
       <h2 tabIndex={-1} ref={headingRef}>
         {title}
       </h2>
-      {error ? <ErrorSummary title={t("errorTitle")} message={error} fields={fields} fieldIds={ids} /> : null}
+      {error ? <ErrorSummary title={t("errorTitle")} message={error === translate("en", "checkFields") ? t("checkFields") : error} fields={fields} fieldIds={ids} /> : null}
 
       <fieldset className="form-group">
         <legend>

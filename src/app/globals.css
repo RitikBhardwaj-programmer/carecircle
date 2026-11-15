@@ -832,7 +832,11 @@ input[type="checkbox"] {
   padding: 0;
   background: transparent;
 }
+.next-dose {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
 .next-dose .eyebrow {
+  margin-bottom: var(--space-1);
   color: var(--primary);
 }
 .eyebrow {
@@ -951,6 +955,10 @@ input[type="checkbox"] {
   align-items: stretch;
   padding: var(--space-5);
 }
+/* In a column the flex-basis would become a fixed height, leaving empty space above the button. */
+.dose-card-large .dose-main {
+  flex: none;
+}
 .dose-card-large .dose-time {
   font-size: var(--text-3xl);
 }
@@ -978,7 +986,13 @@ input[type="checkbox"] {
 }
 .elder-home h1 {
   font-size: var(--text-2xl);
-  margin: var(--space-3) 0;
+  margin: var(--space-2) 0;
+}
+.elder-home .next-dose {
+  margin-top: var(--space-2);
+}
+.next-dose .dose-card-large .dose-time {
+  font-size: var(--text-2xl);
 }
 
 /* Circle dashboard summary */

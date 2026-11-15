@@ -19,7 +19,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body>
         <a className="skip-link" href="#main">
-          Skip to main content
+          Skip to main content · मुख्य सामग्री पर जाएँ
         </a>
         {children}
       </body>
