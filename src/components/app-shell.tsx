@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "./api";
+import { LogoMark } from "./icon";
 import { useSession } from "./session-context";
 import type { MessageKey } from "@/lib/i18n";
 
@@ -49,6 +50,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  // Elder Mode sits on <html>, so the root font size (and every rem) grows with it.
+  useEffect(() => {
+    document.documentElement.classList.toggle("elder-mode", elderMode);
+    return () => document.documentElement.classList.remove("elder-mode");
+  }, [elderMode]);
+
   async function logout() {
     await api("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     router.replace("/");
@@ -56,13 +63,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div lang={lang} className={elderMode ? "shell elder-mode" : "shell"}>
+    <div lang={lang} className="shell">
       <header className="topbar">
         <div className="container topbar-inner">
           <p className="brand">
-            <span aria-hidden="true">💙</span> {t("appName")}
-            <span className="brand-sub">
-              {profile.elderName} · {member.name} ({member.role})
+            <LogoMark />
+            <span>
+              {t("appName")}
+              <span className="brand-sub">
+                {profile.elderName} · {member.name} ({member.role})
+              </span>
             </span>
           </p>
           <div className="toolbar">
@@ -73,7 +83,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <label className="sr-only" htmlFor="lang-select">
               Language
             </label>
-            <select id="lang-select" value={lang} onChange={(e) => setLang(e.target.value === "hi" ? "hi" : "en")}>
+            <select
+              id="lang-select"
+              value={lang}
+              onChange={(e) => setLang(e.target.value === "hi" ? "hi" : "en")}
+            >
               <option value="en">English</option>
               <option value="hi">हिन्दी</option>
             </select>
