@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Medication } from "@/lib/domain/types";
 import { fill, type MessageKey } from "@/lib/i18n";
 import { api, ApiError } from "./api";
-import { emptyMedication, MedicationForm, type MedicationValues } from "./medication-form";
+import { emptyMedication, medicationBody, MedicationForm, type MedicationValues } from "./medication-form";
 import { useSession } from "./session-context";
 import { ExplainButton, PrescriptionScan } from "./ai-tools";
 import { takeAssistDraft } from "./assistant";
@@ -15,19 +15,6 @@ const WEEKDAY_KEYS: MessageKey[] = ["wd0", "wd1", "wd2", "wd3", "wd4", "wd5", "w
 
 function todayIn(timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
-}
-
-function toBody(v: MedicationValues) {
-  return {
-    name: v.name,
-    dosage: v.dosage,
-    instructions: v.instructions || null,
-    times: v.times,
-    days: v.days,
-    startDate: v.startDate,
-    endDate: v.endDate || null,
-    active: v.active,
-  };
 }
 
 function toValues(m: Medication): MedicationValues {
@@ -82,9 +69,9 @@ export function MedicationsView() {
     setFields({});
     try {
       if (editing && editing !== "new") {
-        await api(`/api/medications/${editing.id}`, { method: "PUT", body: toBody(v) });
+        await api(`/api/medications/${editing.id}`, { method: "PUT", body: medicationBody(v) });
       } else {
-        await api("/api/medications", { method: "POST", body: toBody(v) });
+        await api("/api/medications", { method: "POST", body: medicationBody(v) });
       }
       announce(fill(t("savedName"), { name: v.name }));
       setEditing(null);
@@ -125,15 +112,8 @@ export function MedicationsView() {
         </div>
       ) : null}
 
-      {can.write && editing === null ? (
-        <PrescriptionScan
-          today={today}
-          onUseDraft={(draft) => {
-            setPrefill(draft);
-            setEditing("new");
-          }}
-        />
-      ) : null}
+      {/* Stays mounted while a medicine is edited, so a scan's drafts are never lost. */}
+      {can.write ? <PrescriptionScan today={today} onSaved={() => void load()} /> : null}
 
       {editing !== null ? (
         <MedicationForm

@@ -1128,6 +1128,33 @@ details > summary {
 .ai-card {
   border-color: var(--primary);
 }
+.scan-review {
+  margin-top: var(--space-4);
+}
+.scan-review > h3 {
+  font-size: var(--text-xl);
+}
+.draft-card {
+  border-left: 8px solid var(--primary);
+}
+.draft-card.status-saved {
+  border-left-color: var(--ok);
+}
+.draft-card.status-error {
+  border-left-color: var(--danger);
+}
+.draft-name {
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-1);
+  overflow-wrap: anywhere;
+}
+.draft-saved {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ok);
+  font-weight: 700;
+}
 .draft {
   justify-content: space-between;
   padding: var(--space-2) 0;

@@ -30,6 +30,20 @@ const TIME_CHIPS: Array<{ label: MessageKey; time: string }> = [
   { label: "night", time: "21:00" },
 ];
 
+/** Body for POST/PUT /api/medications from the form values. */
+export function medicationBody(v: MedicationValues) {
+  return {
+    name: v.name,
+    dosage: v.dosage,
+    instructions: v.instructions || null,
+    times: v.times,
+    days: v.days,
+    startDate: v.startDate,
+    endDate: v.endDate || null,
+    active: v.active,
+  };
+}
+
 export function emptyMedication(today: string): MedicationValues {
   return {
     name: "",
@@ -149,7 +163,14 @@ export function MedicationForm({
       <h2 tabIndex={-1} ref={headingRef}>
         {title}
       </h2>
-      {error ? <ErrorSummary title={t("errorTitle")} message={error === translate("en", "checkFields") ? t("checkFields") : error} fields={fields} fieldIds={ids} /> : null}
+      {error ? (
+        <ErrorSummary
+          title={t("errorTitle")}
+          message={error === translate("en", "checkFields") ? t("checkFields") : error}
+          fields={fields}
+          fieldIds={ids}
+        />
+      ) : null}
 
       <fieldset className="form-group">
         <legend>
