@@ -89,10 +89,19 @@ const EXPLAIN_SYSTEM = (lang: Language) =>
     `Answer in ${lang === "hi" ? "simple Hindi (Devanagari script)" : "simple English"}.`,
     "Write exactly three short sections with these headings: 'What it is for', 'How to take it', 'Questions for your doctor'" +
       (lang === "hi" ? " (translate the headings to Hindi)." : "."),
-    "Each section has at most 3 bullet points.",
+    "Each section has at most 3 bullet points. Use plain text only: no Markdown, no asterisks; start bullets with '- '.",
     "Never diagnose. Never suggest changing, stopping or starting a dose. Do not mention brand prices.",
     `Always end with this exact line: "${DISCLAIMER[lang]}"`,
   ].join(" ");
+
+/** Removes Markdown emphasis and normalises bullets, because the UI shows the answer as plain text. */
+export function toPlainText(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[*•]\s+/gm, "- ")
+    .trim();
+}
 
 const cache = new Map<string, string>();
 const MAX_CACHE = 500;
@@ -118,7 +127,7 @@ export async function explainMedicine(
     logger.warn("ai.explain_failed", { error: (err as Error).name });
     throw new AppError("UPSTREAM", "The explainer is not available right now. Please try again later.");
   }
-  text = text.trim().slice(0, 4000);
+  text = toPlainText(text).slice(0, 4000);
   if (!text) throw new AppError("UPSTREAM", "The explainer is not available right now. Please try again later.");
   // Guarantee the disclaimer even if the model forgot it.
   if (!text.includes(DISCLAIMER[input.language])) text = `${text}\n\n${DISCLAIMER[input.language]}`;

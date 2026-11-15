@@ -1,6 +1,6 @@
 import { makeDeps, seedProfile, addAndLogin } from "../../../tests/helpers";
 import type { TextModel } from "../infra/gemini";
-import { DISCLAIMER, explainMedicine, scanPrescription } from "./ai";
+import { DISCLAIMER, explainMedicine, scanPrescription, toPlainText } from "./ai";
 
 function fakeModel(reply: string | Error): TextModel & { calls: number } {
   const m = {
@@ -46,6 +46,14 @@ describe("scanPrescription (R10)", () => {
     await expect(scanPrescription(m, elder, { mimeType: "image/png", bytes: Buffer.alloc(4 * 1024 * 1024 + 1) })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(scanPrescription(m, viewer, png)).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(m.calls).toBe(0);
+  });
+});
+
+describe("toPlainText", () => {
+  it("strips Markdown emphasis, headings and star bullets", () => {
+    expect(toPlainText("## Title\n**What it is for**\n* lowers sugar\n• with food")).toBe(
+      "Title\nWhat it is for\n- lowers sugar\n- with food",
+    );
   });
 });
 
