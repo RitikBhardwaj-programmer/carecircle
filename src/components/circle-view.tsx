@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { ProfileSettings } from "@/lib/domain/types";
 import { api, ApiError } from "./api";
@@ -88,6 +89,7 @@ function SettingsForm({ initial, onSaved }: { initial: ProfileSettings; onSaved:
 
 export function CircleView() {
   const { profile, member: me, can, t, announce } = useSession();
+  const router = useRouter();
   const [members, setMembers] = useState<PublicMember[] | null>(null);
   const [shown, setShown] = useState<{ name: string; passcode: string } | null>(null);
   const [form, setForm] = useState({ name: "", email: "", role: "family" as "family" | "caretaker", permission: "view" as "view" | "manage", notify: true });
@@ -267,7 +269,7 @@ export function CircleView() {
               {busy ? "Adding…" : "Add and create passcode"}
             </button>
           </form>
-          <SettingsForm initial={profile.settings} onSaved={() => undefined} />
+          <SettingsForm initial={profile.settings} onSaved={() => router.refresh()} />
         </>
       ) : null}
     </section>
