@@ -1,10 +1,11 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { ApiError, api } from "./api";
 import type { MedicationValues } from "./medication-form";
 import { useSession } from "./session-context";
 import { fill } from "@/lib/i18n";
+import type { Language } from "@/lib/domain/types";
 
 interface Draft {
   name: string;
@@ -27,10 +28,17 @@ export function PrescriptionScan({
   onUseDraft: (v: MedicationValues) => void;
 }) {
   const inputId = useId();
-  const { announce, t } = useSession();
+  const { announce, t, lang } = useSession();
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // An error message shown in the old language is dropped on a language switch.
+  const errorLang = useRef(lang);
+  useEffect(() => {
+    if (errorLang.current === lang) return;
+    errorLang.current = lang;
+    setError(null);
+  }, [lang]);
 
   async function onFile(file: File | undefined) {
     if (!file) return;
@@ -118,28 +126,51 @@ export function ExplainButton({ name, dosage }: { name: string; dosage: string }
   const { lang, t } = useSession();
   const panelId = useId();
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState<string | null>(null);
+  /** The explanation and the language it was written in, so it is never shown in the wrong language. */
+  const [result, setResult] = useState<{ text: string; lang: Language } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const request = useRef(0);
+
+  const fetchIn = useCallback(
+    async (language: Language) => {
+      request.current += 1;
+      const id = request.current;
+      setBusy(true);
+      setError(null);
+      setResult(null);
+      try {
+        const res = await api<{ text: string }>("/api/ai/explain", {
+          method: "POST",
+          body: { name, dosage, language },
+        });
+        // A newer request (e.g. after another language switch) wins.
+        if (id === request.current) setResult({ text: res.text, lang: language });
+      } catch (e) {
+        if (id === request.current) setError((e as Error).message);
+      } finally {
+        if (id === request.current) setBusy(false);
+      }
+    },
+    [name, dosage],
+  );
+
+  // Language switched: an open explanation is asked again in the new language; a closed one is dropped.
+  useEffect(() => {
+    if (!result || result.lang === lang) return;
+    // Reacting to the language change is the point of this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (open) void fetchIn(lang);
+    else setResult(null);
+  }, [lang, open, result, fetchIn]);
 
   async function toggle() {
     if (open) return setOpen(false);
     setOpen(true);
-    if (text) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await api<{ text: string }>("/api/ai/explain", {
-        method: "POST",
-        body: { name, dosage, language: lang },
-      });
-      setText(res.text);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    if (result?.lang === lang) return;
+    await fetchIn(lang);
   }
+  const text = result?.lang === lang ? result.text : null;
 
   return (
     <>

@@ -5,7 +5,17 @@ import { speechLang } from "@/lib/i18n";
 import type { Language } from "@/lib/domain/types";
 
 /** Reads text aloud with the browser Speech Synthesis API. Hidden if the browser lacks it. */
-export function ReadAloudButton({ text, lang, label, stopLabel }: { text: string; lang: Language; label: string; stopLabel: string }) {
+export function ReadAloudButton({
+  text,
+  lang,
+  label,
+  stopLabel,
+}: {
+  text: string;
+  lang: Language;
+  label: string;
+  stopLabel: string;
+}) {
   const [supported, setSupported] = useState(false);
   const [speaking, setSpeaking] = useState(false);
 
@@ -17,6 +27,13 @@ export function ReadAloudButton({ text, lang, label, stopLabel }: { text: string
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+      setSpeaking(false);
+    };
+  }, [text, lang]);
 
   if (!supported) return null;
 

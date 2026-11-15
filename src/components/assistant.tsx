@@ -105,6 +105,16 @@ export function Assistant({ onMark }: AssistantProps) {
     if (result?.type === "mark_dose") confirmRef.current?.focus();
   }, [result]);
 
+  // A reply written in the old language must not stay on screen after a language switch.
+  const shownLang = useRef(lang);
+  useEffect(() => {
+    if (shownLang.current === lang) return;
+    shownLang.current = lang;
+    recRef.current?.stop();
+    setResult(null);
+    setNote(null);
+  }, [lang]);
+
   async function ask(q: string) {
     const question = q.trim();
     if (!question || busy) return;

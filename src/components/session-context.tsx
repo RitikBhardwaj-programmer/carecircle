@@ -69,6 +69,9 @@ export function SessionProvider({ value, children }: { value: SessionInfo; child
   }, []);
   const setLang = useCallback((next: Language) => {
     setLangState(next);
+    // A toast written in the old language is closed rather than left in the wrong language.
+    window.clearTimeout(timer.current);
+    setToast(null);
     try {
       window.localStorage.setItem(LANG_KEY, next);
     } catch {
