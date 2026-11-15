@@ -43,6 +43,8 @@ export interface Member {
   revokedAt: string | null;
   notify: boolean;
   createdAt: string;
+  /** Incremented when the passcode is reset, so older session cookies stop working. */
+  sessionVersion?: number;
 }
 
 export interface Medication {

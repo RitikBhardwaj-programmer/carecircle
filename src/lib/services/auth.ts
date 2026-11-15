@@ -115,8 +115,13 @@ export async function login(deps: Deps, code: string, passcode: string): Promise
   if (profile.failedLogins > 0 || profile.lockedUntil) {
     await deps.repo.updateProfile(profile.id, { failedLogins: 0, lockedUntil: null });
   }
-  const token = createSessionToken(profile.id, match.id, now, deps.secret);
+  const token = sessionTokenFor(match, now, deps.secret);
   return { profile, member: match, token };
+}
+
+/** Signed session token for a member, bound to their current session version. */
+export function sessionTokenFor(member: Member, now: Date, secret: string): string {
+  return createSessionToken(member.profileId, member.id, now, secret, member.sessionVersion ?? 0);
 }
 
 /** Resolves a session cookie to the current member. A revoked member fails at once. */
@@ -127,7 +132,9 @@ export async function resolveSession(deps: Deps, token: string | undefined): Pro
     deps.repo.getProfile(claims.profileId),
     deps.repo.getMember(claims.profileId, claims.memberId),
   ]);
-  if (!profile || !member || member.revokedAt) throw new AppError("UNAUTHORIZED", "Please log in.");
+  if (!profile || !member || member.revokedAt || (member.sessionVersion ?? 0) !== claims.version) {
+    throw new AppError("UNAUTHORIZED", "Please log in.");
+  }
   return { profile, member };
 }
 

@@ -52,8 +52,10 @@ describe("session tokens", () => {
     expect(verifySessionToken(token, now, SECRET)).toEqual({
       profileId: "p1",
       memberId: "m1",
+      version: 0,
       exp: now.getTime() + SESSION_TTL_MS,
     });
+    expect(verifySessionToken(createSessionToken("p1", "m1", now, SECRET, 3), now, SECRET)?.version).toBe(3);
   });
 
   it("expire after 12 hours", () => {

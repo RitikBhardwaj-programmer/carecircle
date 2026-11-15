@@ -76,16 +76,20 @@ export async function revokeMember(deps: Deps, actor: Actor, memberId: string) {
   return publicMember(updated);
 }
 
-/** Elder only. Issues a new passcode; the old one stops working at once. */
+/**
+ * Elder only (also for the elder's own passcode). Issues a new passcode; the old passcode and
+ * every existing session of that member stop working at once.
+ */
 export async function resetPasscode(deps: Deps, actor: Actor, memberId: string) {
   authorize(actor, "manageCircle");
   const member = await loadOther(deps, actor, memberId);
   if (member.revokedAt) throw new AppError("BAD_REQUEST", "This member is revoked.");
   const passcode = generatePasscode();
   const { hash, salt } = await hashPasscode(passcode);
-  await deps.repo.saveMember({ ...member, passcodeHash: hash, salt });
+  const updated: Member = { ...member, passcodeHash: hash, salt, sessionVersion: (member.sessionVersion ?? 0) + 1 };
+  await deps.repo.saveMember(updated);
   await recordActivity(deps, actor, "issued a new passcode for", member.name);
-  return { member: publicMember(member), passcode };
+  return { member: updated, passcode };
 }
 
 /** Elder only. Escalation and reminder timing stay the elder's decision. */

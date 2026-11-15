@@ -39,23 +39,31 @@ function decode<T>(token: string, secret: string, purpose: Purpose, schema: z.Zo
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 export const DOSE_LINK_TTL_MS = 24 * 60 * 60 * 1000;
 
-const sessionPayload = z.object({ p: z.string(), m: z.string(), exp: z.number() });
+const sessionPayload = z.object({ p: z.string(), m: z.string(), v: z.number().int().default(0), exp: z.number() });
 const dosePayload = z.object({ p: z.string(), d: z.string(), m: z.string(), exp: z.number() });
 
 export interface SessionClaims {
   profileId: string;
   memberId: string;
+  /** Member's session version; bumping it on the member logs out every older session. */
+  version: number;
   exp: number;
 }
 
-export function createSessionToken(profileId: string, memberId: string, now: Date, secret: string): string {
-  return encode({ p: profileId, m: memberId, exp: now.getTime() + SESSION_TTL_MS }, secret, "session");
+export function createSessionToken(
+  profileId: string,
+  memberId: string,
+  now: Date,
+  secret: string,
+  version = 0,
+): string {
+  return encode({ p: profileId, m: memberId, v: version, exp: now.getTime() + SESSION_TTL_MS }, secret, "session");
 }
 
 export function verifySessionToken(token: string, now: Date, secret: string): SessionClaims | null {
   const p = decode(token, secret, "session", sessionPayload);
   if (!p || p.exp <= now.getTime()) return null;
-  return { profileId: p.p, memberId: p.m, exp: p.exp };
+  return { profileId: p.p, memberId: p.m, version: p.v, exp: p.exp };
 }
 
 export interface DoseLinkClaims {
