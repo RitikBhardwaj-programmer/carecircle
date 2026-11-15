@@ -6,4 +6,5 @@ import { authedRoute, readJson } from "@/lib/server/http";
 /** Elder only: reminder timing, circle escalation and language. */
 export const PUT = authedRoute(async ({ req, deps, actor }) =>
   NextResponse.json(await updateSettings(deps, actor, await readJson(req, settingsSchema))),
+  "manageCircle",
 );

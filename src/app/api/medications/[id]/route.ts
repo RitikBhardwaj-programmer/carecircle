@@ -9,9 +9,9 @@ export const PUT = authedRoute<Params>(async ({ req, deps, actor, params }) => {
   const id = parseWith(idParam, params.id);
   const input = await readJson(req, medicationSchema);
   return NextResponse.json({ medication: await updateMedication(deps, actor, id, input) });
-});
+}, "write");
 
 export const DELETE = authedRoute<Params>(async ({ deps, actor, params }) => {
   await deleteMedication(deps, actor, parseWith(idParam, params.id));
   return NextResponse.json({ ok: true });
-});
+}, "write");

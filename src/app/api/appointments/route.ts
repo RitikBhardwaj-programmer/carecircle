@@ -15,4 +15,4 @@ export const GET = authedRoute(async ({ deps, actor }) => {
 export const POST = authedRoute(async ({ req, deps, actor }) => {
   const input = await readJson(req, appointmentSchema);
   return NextResponse.json({ appointment: await createAppointment(deps, actor, input) }, { status: 201 });
-});
+}, "write");

@@ -13,4 +13,4 @@ export const GET = authedRoute(async ({ deps, actor }) => {
 export const POST = authedRoute(async ({ req, deps, actor }) => {
   const { doseId, status } = await readJson(req, doseLogSchema);
   return NextResponse.json({ log: await logDose(deps, actor, doseId, status) });
-});
+}, "write");

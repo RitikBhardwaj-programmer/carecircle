@@ -3,7 +3,8 @@ import { z } from "zod";
 import { AppError } from "../errors";
 import { logger } from "../infra/logger";
 import type { RateLimiter } from "../infra/rate-limit";
-import { resolveSession } from "../services/auth";
+import type { Action } from "../domain/permissions";
+import { authorize, resolveSession } from "../services/auth";
 import type { Actor, Deps } from "../services/deps";
 import { SESSION_TTL_MS } from "../security/tokens";
 import { getDeps } from "./container";
@@ -106,13 +107,18 @@ export function publicRoute(handler: Handler) {
 
 type AuthedHandler<P> = (ctx: { req: NextRequest; deps: Deps; actor: Actor; params: P }) => Promise<NextResponse | Response>;
 
-/** Wraps a logged-in route: same-origin check, session reload (revokes apply at once), error mapping. */
-export function authedRoute<P = Record<string, never>>(handler: AuthedHandler<P>) {
+/**
+ * Wraps a logged-in route: same-origin check, session reload (revokes apply at once), error mapping.
+ * `action` is checked before the body is parsed, so a member without permission learns nothing from validation.
+ * Services check permissions again (defence in depth).
+ */
+export function authedRoute<P = Record<string, never>>(handler: AuthedHandler<P>, action: Action = "read") {
   return async (req: NextRequest, context?: { params: Promise<P> }): Promise<Response> => {
     try {
       assertSameOrigin(req);
       const deps = await getDeps();
       const actor = await requireActor(req, deps);
+      authorize(actor, action);
       const params = context ? await context.params : ({} as P);
       return await handler({ req, deps, actor, params });
     } catch (err) {

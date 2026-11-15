@@ -11,4 +11,4 @@ export const GET = authedRoute(async ({ deps, actor }) =>
 export const POST = authedRoute(async ({ req, deps, actor }) => {
   const input = await readJson(req, addMemberSchema);
   return NextResponse.json(await addMember(deps, actor, input), { status: 201 });
-});
+}, "manageCircle");

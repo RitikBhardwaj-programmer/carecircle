@@ -16,4 +16,4 @@ export const POST = authedRoute(async ({ req, actor }) => {
   const bytes = Buffer.from(await file.arrayBuffer());
   const drafts = await scanPrescription(getTextModel(), actor, { mimeType: file.type, bytes });
   return NextResponse.json({ drafts });
-});
+}, "write");

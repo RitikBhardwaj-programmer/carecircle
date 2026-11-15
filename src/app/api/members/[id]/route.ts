@@ -9,10 +9,10 @@ export const PATCH = authedRoute<Params>(async ({ req, deps, actor, params }) =>
   const id = parseWith(idParam, params.id);
   const input = await readJson(req, updateMemberSchema);
   return NextResponse.json({ member: await updateMember(deps, actor, id, input) });
-});
+}, "manageCircle");
 
 /** Revokes access. The member loses access on their next request. */
 export const DELETE = authedRoute<Params>(async ({ deps, actor, params }) => {
   const id = parseWith(idParam, params.id);
   return NextResponse.json({ member: await revokeMember(deps, actor, id) });
-});
+}, "manageCircle");
