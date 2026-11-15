@@ -134,7 +134,7 @@ Pages: `/` (create or open a profile), `/home` (Elder Mode or Circle dashboard, 
 
 - Semantic landmarks, one `h1` per page, skip link, visible focus ring, `aria-live="polite"` status region for "Marked as taken".
 - Every input has a `<label>`; errors link with `aria-describedby`; no colour-only meaning (icon + text for taken / missed).
-- Text contrast ≥ 7:1 in both modes and control borders ≥ 3:1 (checked by `tests/contrast.test.ts`). Touch targets ≥ 48 px, 60 px in Elder Mode. Base font 19 px, 22 px in Elder Mode (class on `<html>`). Labelled bottom tab bar on phones, visible toast with Undo, "Ask CareCircle" assistant (see README).
+- Text contrast ≥ 7:1 in both modes and control borders ≥ 3:1 (checked by `tests/contrast.test.ts`). Touch targets ≥ 48 px, 60 px in Elder Mode. Base font 19 px, 22 px in Elder Mode (class on `<html>`; off by default, saved per device). Light and dark themes (System / Light / Dark) share the same contrast rules. Hindi on every page. Labelled bottom tab bar on phones, visible toast with Undo, "Ask CareCircle" assistant (see README).
 - `prefers-reduced-motion` respected. `lang` attribute follows the chosen language.
 - Read-aloud button uses the browser Speech Synthesis API.
 - Plain CSS with custom properties; no UI library; no image assets except inline SVG.
