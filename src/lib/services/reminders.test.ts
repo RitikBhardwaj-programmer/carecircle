@@ -3,7 +3,7 @@ import type { Mailer } from "../infra/mailer";
 import { createAppointment } from "./appointments";
 import { createMedication, logDose, todayDoses } from "./medications";
 import { updateSettings } from "./members";
-import { confirmDoseLink, describeDoseLink, runReminders } from "./reminders";
+import { confirmDoseLink, describeDoseLink, MAX_EMAILS_PER_RECIPIENT_PER_DAY, runReminders } from "./reminders";
 import { revokeMember } from "./members";
 
 describe("runReminders (R6, R7, R8, R12)", () => {
@@ -92,6 +92,25 @@ describe("runReminders (R6, R7, R8, R12)", () => {
     expect(r1).toMatchObject({ sent: 0, failed: 1 });
     const r2 = await runReminders(deps);
     expect(r2.sent).toBe(1);
+  });
+});
+
+describe("abuse guard", () => {
+  it("caps reminder emails per recipient per day", async () => {
+    const { deps, mailer } = makeDeps("2026-11-15T15:10:00.000Z");
+    const { elder } = await seedProfile(deps);
+    // 20:40 IST: all 40 doses (19:50-20:04) are past the 30 min grace -> 40 planned missed emails to the elder.
+    for (let i = 0; i < 5; i += 1) {
+      await createMedication(deps, elder, {
+        ...medInput,
+        name: `Med ${i}`,
+        times: ["19:50", "19:52", "19:54", "19:56", "19:58", "20:00", "20:02", "20:04"],
+      });
+    }
+    const r = await runReminders(deps);
+    expect(r.planned).toBe(40);
+    expect(r.sent).toBe(MAX_EMAILS_PER_RECIPIENT_PER_DAY);
+    expect(mailer.sent).toHaveLength(MAX_EMAILS_PER_RECIPIENT_PER_DAY);
   });
 });
 

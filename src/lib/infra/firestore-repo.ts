@@ -148,9 +148,9 @@ export class FirestoreRepo implements Repository {
     await this.sub(profileId, "notifications").doc(key).delete();
   }
 
-  async listNotificationKeys(profileId: string, sinceIso: string): Promise<Set<string>> {
-    const q = await this.sub(profileId, "notifications").where("sentAt", ">=", sinceIso).select().get();
-    return new Set(q.docs.map((d) => d.id));
+  async listNotifications(profileId: string, sinceIso: string): Promise<NotificationRecord[]> {
+    const q = await this.sub(profileId, "notifications").where("sentAt", ">=", sinceIso).get();
+    return q.docs.map((d) => d.data() as NotificationRecord);
   }
 
   async addActivity(profileId: string, entry: ActivityEntry): Promise<void> {

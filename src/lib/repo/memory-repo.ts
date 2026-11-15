@@ -140,11 +140,8 @@ export class MemoryRepo implements Repository {
     this.bucket(profileId).notifications.delete(key);
   }
 
-  async listNotificationKeys(profileId: string, sinceIso: string): Promise<Set<string>> {
-    const keys = [...this.bucket(profileId).notifications.values()]
-      .filter((n) => n.sentAt >= sinceIso)
-      .map((n) => n.key);
-    return new Set(keys);
+  async listNotifications(profileId: string, sinceIso: string): Promise<NotificationRecord[]> {
+    return [...this.bucket(profileId).notifications.values()].filter((n) => n.sentAt >= sinceIso).map(clone);
   }
 
   async addActivity(profileId: string, entry: ActivityEntry): Promise<void> {

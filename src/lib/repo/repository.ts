@@ -43,7 +43,8 @@ export interface Repository {
   /** Creates the notification record. Returns false when the key already exists (already sent). */
   claimNotification(profileId: string, record: NotificationRecord): Promise<boolean>;
   releaseNotification(profileId: string, key: string): Promise<void>;
-  listNotificationKeys(profileId: string, sinceIso: string): Promise<Set<string>>;
+  /** Notifications sent since the given instant (used for idempotency and the per-recipient daily cap). */
+  listNotifications(profileId: string, sinceIso: string): Promise<NotificationRecord[]>;
 
   addActivity(profileId: string, entry: ActivityEntry): Promise<void>;
   listActivity(profileId: string, limit: number): Promise<ActivityEntry[]>;

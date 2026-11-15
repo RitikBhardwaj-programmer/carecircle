@@ -1,5 +1,6 @@
 import { can } from "../domain/permissions";
 import { planReminders, type Reminder } from "../domain/reminders";
+import { parseDoseId } from "../domain/schedule";
 import { addDays, DAY_MS, localParts } from "../domain/time";
 import type { Profile } from "../domain/types";
 import { renderReminder } from "../email/templates";
@@ -28,56 +29,87 @@ async function snapshotFor(deps: Deps, profile: Profile) {
   return { profile, members, medications, appointments, loggedDoseIds: new Set(logs.map((l) => l.id)) };
 }
 
+/** Profiles handled at the same time in one cron run (bounded, so Firestore and SMTP are not flooded). */
+export const PROFILE_CONCURRENCY = 5;
+/** Abuse guard: one recipient gets at most this many reminder emails in 24 hours. */
+export const MAX_EMAILS_PER_RECIPIENT_PER_DAY = 30;
+
 /**
- * One cron run. For each planned reminder: claim the notification key first (create fails if it
- * exists), then send; if sending fails, release the key so the next run retries.
- * Running it twice in a row sends nothing new.
+ * One cron run. Profiles are processed in small parallel batches. For each planned reminder:
+ * claim the notification key first (create fails if it exists), then send; if sending fails,
+ * release the key so the next run retries. Running it twice in a row sends nothing new.
  */
 export async function runReminders(deps: Deps): Promise<CronResult> {
   const result: CronResult = { profiles: 0, planned: 0, sent: 0, skipped: 0, failed: 0 };
-  const now = deps.now();
   const profiles = await deps.repo.listProfiles();
-  for (const profile of profiles) {
-    result.profiles += 1;
-    try {
-      const snap = await snapshotFor(deps, profile);
-      const sentKeys = await deps.repo.listNotificationKeys(profile.id, new Date(now.getTime() - 3 * DAY_MS).toISOString());
-      const reminders = planReminders(now, snap, sentKeys);
-      result.planned += reminders.length;
-      for (const r of reminders) {
-        const claimed = await deps.repo.claimNotification(profile.id, {
-          key: r.key,
-          type: r.type,
-          recipientMemberId: r.recipient.memberId,
-          sentAt: now.toISOString(),
-        });
-        if (!claimed) {
-          result.skipped += 1;
-          continue;
-        }
-        try {
-          const member = snap.members.find((m) => m.id === r.recipient.memberId);
-          await deps.mailer.send(
-            renderReminder(r, {
-              elderName: profile.elderName,
-              timeZone: profile.timezone,
-              appUrl: deps.appUrl,
-              doseLink: member && can(member, "write") ? doseLinkFor(deps, r) : undefined,
-            }),
-          );
-          result.sent += 1;
-        } catch (err) {
-          await deps.repo.releaseNotification(profile.id, r.key);
-          result.failed += 1;
-          logger.error("reminder.send_failed", { type: r.type, error: (err as Error).name });
-        }
-      }
-    } catch (err) {
-      result.failed += 1;
-      logger.error("reminder.profile_failed", { profileId: profile.id, error: (err as Error).name });
+  for (let i = 0; i < profiles.length; i += PROFILE_CONCURRENCY) {
+    const batch = profiles.slice(i, i + PROFILE_CONCURRENCY);
+    const partials = await Promise.all(batch.map((p) => runForProfile(deps, p)));
+    for (const part of partials) {
+      result.profiles += 1;
+      result.planned += part.planned;
+      result.sent += part.sent;
+      result.skipped += part.skipped;
+      result.failed += part.failed;
     }
   }
   return result;
+}
+
+async function runForProfile(deps: Deps, profile: Profile): Promise<Omit<CronResult, "profiles">> {
+  const part = { planned: 0, sent: 0, skipped: 0, failed: 0 };
+  const now = deps.now();
+  try {
+    const [snap, history] = await Promise.all([
+      snapshotFor(deps, profile),
+      deps.repo.listNotifications(profile.id, new Date(now.getTime() - 3 * DAY_MS).toISOString()),
+    ]);
+    const dayAgo = new Date(now.getTime() - DAY_MS).toISOString();
+    const sentToday = new Map<string, number>();
+    for (const n of history) {
+      if (n.sentAt >= dayAgo) sentToday.set(n.recipientMemberId, (sentToday.get(n.recipientMemberId) ?? 0) + 1);
+    }
+    const reminders = planReminders(now, snap, new Set(history.map((n) => n.key)));
+    part.planned = reminders.length;
+    for (const r of reminders) {
+      const count = sentToday.get(r.recipient.memberId) ?? 0;
+      if (count >= MAX_EMAILS_PER_RECIPIENT_PER_DAY) {
+        part.skipped += 1;
+        continue;
+      }
+      const claimed = await deps.repo.claimNotification(profile.id, {
+        key: r.key,
+        type: r.type,
+        recipientMemberId: r.recipient.memberId,
+        sentAt: now.toISOString(),
+      });
+      if (!claimed) {
+        part.skipped += 1;
+        continue;
+      }
+      try {
+        const member = snap.members.find((m) => m.id === r.recipient.memberId);
+        await deps.mailer.send(
+          renderReminder(r, {
+            elderName: profile.elderName,
+            timeZone: profile.timezone,
+            appUrl: deps.appUrl,
+            doseLink: member && can(member, "write") ? doseLinkFor(deps, r) : undefined,
+          }),
+        );
+        sentToday.set(r.recipient.memberId, count + 1);
+        part.sent += 1;
+      } catch (err) {
+        await deps.repo.releaseNotification(profile.id, r.key);
+        part.failed += 1;
+        logger.error("reminder.send_failed", { type: r.type, error: (err as Error).name });
+      }
+    }
+  } catch (err) {
+    part.failed += 1;
+    logger.error("reminder.profile_failed", { profileId: profile.id, error: (err as Error).name });
+  }
+  return part;
 }
 
 function doseLinkFor(deps: Deps, r: Reminder): string | undefined {
@@ -101,17 +133,17 @@ export async function describeDoseLink(deps: Deps, token: string) {
   if (!profile || !member || member.revokedAt) {
     throw new AppError("UNAUTHORIZED", "This link has expired or is not valid.");
   }
-  const medId = claims.doseId.split("_")[0] ?? "";
-  const med = await deps.repo.getMedication(profile.id, medId);
+  const parts = parseDoseId(claims.doseId);
+  if (!parts) throw new AppError("UNAUTHORIZED", "This link has expired or is not valid.");
+  const med = await deps.repo.getMedication(profile.id, parts.medicationId);
   if (!med) throw new AppError("NOT_FOUND", "This medication was removed.");
-  const time = claims.doseId.slice(-4);
   return {
     profile,
     member,
     doseId: claims.doseId,
     elderName: profile.elderName,
     medication: `${med.name} (${med.dosage})`,
-    time: `${time.slice(0, 2)}:${time.slice(2)}`,
+    time: parts.time,
   };
 }
 
