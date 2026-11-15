@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Medication } from "@/lib/domain/types";
+import { fill, type MessageKey } from "@/lib/i18n";
 import { api, ApiError } from "./api";
 import { emptyMedication, MedicationForm, type MedicationValues } from "./medication-form";
 import { useSession } from "./session-context";
@@ -10,7 +11,7 @@ import { takeAssistDraft } from "./assistant";
 import { EmptyState, Skeleton } from "./feedback";
 import { Icon } from "./icon";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_KEYS: MessageKey[] = ["wd0", "wd1", "wd2", "wd3", "wd4", "wd5", "wd6"];
 
 function todayIn(timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
@@ -85,7 +86,7 @@ export function MedicationsView() {
       } else {
         await api("/api/medications", { method: "POST", body: toBody(v) });
       }
-      announce(`Saved ${v.name}`);
+      announce(fill(t("savedName"), { name: v.name }));
       setEditing(null);
       setPrefill(null);
       await load();
@@ -98,10 +99,10 @@ export function MedicationsView() {
   }
 
   async function remove(m: Medication) {
-    if (!window.confirm(`Remove ${m.name}? Its schedule and reminders stop.`)) return;
+    if (!window.confirm(fill(t("confirmRemoveMed"), { name: m.name }))) return;
     try {
       await api(`/api/medications/${m.id}`, { method: "DELETE" });
-      announce(`Removed ${m.name}`);
+      announce(fill(t("removedName"), { name: m.name }));
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -113,15 +114,13 @@ export function MedicationsView() {
   return (
     <section aria-labelledby="meds-title">
       <h1 id="meds-title">{t("navMedications")}</h1>
-      {!can.write ? (
-        <p className="notice">You have view-only access. Ask the elder for manage access to make changes.</p>
-      ) : null}
+      {!can.write ? <p className="notice">{t("viewOnlyNotice")}</p> : null}
 
       {can.write && editing === null ? (
         <div className="row wrap">
           <button type="button" className="btn btn-primary" onClick={() => setEditing("new")}>
             <Icon name="plus" />
-            Add medication
+            {t("addMedication")}
           </button>
         </div>
       ) : null}
@@ -139,8 +138,9 @@ export function MedicationsView() {
       {editing !== null ? (
         <MedicationForm
           key={editing === "new" ? `new-${prefill?.name ?? ""}` : editing.id}
-          title={editing === "new" ? "Add medication" : `Edit ${editing.name}`}
-          submitLabel={editing === "new" ? "Confirm and save" : "Save changes"}
+          title={editing === "new" ? t("addMedication") : fill(t("editName"), { name: editing.name })}
+          submitLabel={editing === "new" ? t("confirmAndSave") : t("saveChanges")}
+          t={t}
           initial={editing === "new" ? (prefill ?? emptyMedication(today)) : toValues(editing)}
           error={error}
           fields={fields}
@@ -176,16 +176,16 @@ export function MedicationsView() {
               <div className="item-main">
                 <h2 className="h3">
                   <Icon name="pill" /> {m.name} <span className="muted">{m.dosage}</span>{" "}
-                  {!m.active ? <span className="badge">Paused</span> : null}
+                  {!m.active ? <span className="badge">{t("paused")}</span> : null}
                 </h2>
                 <p>
                   <Icon name="clock" /> {m.times.join(", ")} ·{" "}
-                  {m.days.length === 0 ? "Every day" : m.days.map((d) => WEEKDAYS[d]).join(", ")} · from{" "}
-                  {m.startDate}
-                  {m.endDate ? ` to ${m.endDate}` : ""}
+                  {m.days.length === 0 ? t("everyDay") : m.days.map((d) => t(WEEKDAY_KEYS[d]!)).join(", ")} ·{" "}
+                  {fill(t("fromDate"), { date: m.startDate })}
+                  {m.endDate ? ` ${fill(t("toDate"), { date: m.endDate })}` : ""}
                 </p>
                 {m.instructions ? <p className="muted">{m.instructions}</p> : null}
-                <p className="muted small">Last changed by {m.updatedBy}</p>
+                <p className="muted small">{fill(t("lastChangedBy"), { name: m.updatedBy })}</p>
               </div>
               <div className="item-actions">
                 <ExplainButton name={m.name} dosage={m.dosage} />
@@ -195,17 +195,17 @@ export function MedicationsView() {
                       type="button"
                       className="btn btn-secondary"
                       onClick={() => setEditing(m)}
-                      aria-label={`Edit ${m.name}`}
+                      aria-label={fill(t("editName"), { name: m.name })}
                     >
-                      Edit
+                      {t("editBtn")}
                     </button>
                     <button
                       type="button"
                       className="btn btn-danger"
                       onClick={() => void remove(m)}
-                      aria-label={`Remove ${m.name}`}
+                      aria-label={fill(t("removeName"), { name: m.name })}
                     >
-                      Remove
+                      {t("removeBtn")}
                     </button>
                   </>
                 ) : null}

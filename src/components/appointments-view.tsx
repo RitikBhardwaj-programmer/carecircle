@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { zonedToUtc } from "@/lib/domain/time";
+import { fill } from "@/lib/i18n";
 import { api, ApiError, formatDateTime } from "./api";
 import { takeAssistDraft } from "./assistant";
 import { EmptyState, Skeleton } from "./feedback";
@@ -118,7 +119,7 @@ export function AppointmentsView() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!v.date || !v.time) {
-      setFields({ at: "Choose a date and time." });
+      setFields({ at: t("chooseDateTime") });
       return;
     }
     setBusy(true);
@@ -134,7 +135,7 @@ export function AppointmentsView() {
     try {
       if (editing && editing !== "new") await api(`/api/appointments/${editing.id}`, { method: "PUT", body });
       else await api("/api/appointments", { method: "POST", body });
-      announce(`Saved appointment with ${v.doctor}`);
+      announce(fill(t("savedAppt"), { name: v.doctor }));
       setEditing(null);
       await load();
     } catch (err) {
@@ -146,10 +147,10 @@ export function AppointmentsView() {
   }
 
   async function remove(a: Appt) {
-    if (!window.confirm(`Delete the appointment with ${a.doctor}?`)) return;
+    if (!window.confirm(fill(t("confirmDeleteAppt"), { name: a.doctor }))) return;
     try {
       await api(`/api/appointments/${a.id}`, { method: "DELETE" });
-      announce("Appointment deleted");
+      announce(t("apptDeleted"));
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -181,7 +182,8 @@ export function AppointmentsView() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Add to Google Calendar<span className="sr-only"> (opens in a new tab)</span>
+                  {t("addToCalendar")}
+                  <span className="sr-only">{t("opensNewTab")}</span>
                 </a>
               ) : null}
               {can.write ? (
@@ -190,17 +192,17 @@ export function AppointmentsView() {
                     type="button"
                     className="btn btn-secondary"
                     onClick={() => open(a)}
-                    aria-label={`Edit appointment with ${a.doctor}`}
+                    aria-label={fill(t("editApptWith"), { name: a.doctor })}
                   >
-                    Edit
+                    {t("editBtn")}
                   </button>
                   <button
                     type="button"
                     className="btn btn-danger"
                     onClick={() => void remove(a)}
-                    aria-label={`Delete appointment with ${a.doctor}`}
+                    aria-label={fill(t("deleteApptWith"), { name: a.doctor })}
                   >
-                    Delete
+                    {t("deleteBtn")}
                   </button>
                 </>
               ) : null}
@@ -214,11 +216,11 @@ export function AppointmentsView() {
   return (
     <section aria-labelledby="appt-title">
       <h1 id="appt-title">{t("navAppointments")}</h1>
-      <p className="muted">Reminder emails go out 24 hours and 2 hours before each appointment.</p>
+      <p className="muted">{t("apptIntro")}</p>
       {can.write && editing === null ? (
         <button type="button" className="btn btn-primary" onClick={() => open("new")}>
           <Icon name="plus" />
-          Add appointment
+          {t("addAppt")}
         </button>
       ) : null}
       {editing !== null ? (
@@ -226,11 +228,11 @@ export function AppointmentsView() {
           className="card panel"
           onSubmit={save}
           noValidate
-          aria-label={editing === "new" ? "Add appointment" : "Edit appointment"}
+          aria-label={editing === "new" ? t("addAppt") : t("editAppt")}
         >
-          <h2>{editing === "new" ? "Add appointment" : "Edit appointment"}</h2>
+          <h2>{editing === "new" ? t("addAppt") : t("editAppt")}</h2>
           <Field
-            label="Doctor"
+            label={t("doctor")}
             value={v.doctor}
             onChange={set("doctor")}
             error={fields.doctor}
@@ -238,7 +240,7 @@ export function AppointmentsView() {
             maxLength={80}
           />
           <Field
-            label="Purpose"
+            label={t("purpose")}
             value={v.purpose}
             onChange={set("purpose")}
             error={fields.purpose}
@@ -247,24 +249,24 @@ export function AppointmentsView() {
           />
           <div className="row wrap">
             <Field
-              label="Date"
+              label={t("date")}
               type="date"
               value={v.date}
               onChange={set("date")}
               error={fields.at}
               required
             />
-            <Field label="Time" type="time" value={v.time} onChange={set("time")} required />
+            <Field label={t("time")} type="time" value={v.time} onChange={set("time")} required />
           </div>
           <Field
-            label="Location (optional)"
+            label={t("locationOpt")}
             value={v.location}
             onChange={set("location")}
             error={fields.location}
             maxLength={160}
           />
           <Field
-            label="Notes (optional)"
+            label={t("notesOpt")}
             value={v.notes}
             onChange={set("notes")}
             error={fields.notes}
@@ -273,10 +275,10 @@ export function AppointmentsView() {
           <FormError message={error} />
           <div className="row">
             <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? "Saving…" : "Save"}
+              {busy ? t("saving") : t("save")}
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </form>
@@ -300,8 +302,8 @@ export function AppointmentsView() {
       ) : (
         list(data.upcoming, false)
       )}
-      <h2>History</h2>
-      {data && data.past.length > 0 ? list(data.past, true) : <p>No past appointments.</p>}
+      <h2>{t("history")}</h2>
+      {data && data.past.length > 0 ? list(data.past, true) : <p>{t("noPastAppts")}</p>}
     </section>
   );
 }

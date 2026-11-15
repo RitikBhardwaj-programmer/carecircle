@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { translate, fill, type MessageKey } from "@/lib/i18n";
 import { ErrorSummary } from "./feedback";
 import { Field } from "./field";
 import { Icon } from "./icon";
@@ -16,14 +17,17 @@ export interface MedicationValues {
   active: boolean;
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_KEYS: MessageKey[] = ["wd0", "wd1", "wd2", "wd3", "wd4", "wd5", "wd6"];
+
+type T = (key: MessageKey) => string;
+const english: T = (k) => translate("en", k);
 
 /** Quick picks for common times; typed times stay available for anything else. */
-const TIME_CHIPS: Array<{ label: string; time: string }> = [
-  { label: "Morning", time: "08:00" },
-  { label: "Afternoon", time: "14:00" },
-  { label: "Evening", time: "18:00" },
-  { label: "Night", time: "21:00" },
+const TIME_CHIPS: Array<{ label: MessageKey; time: string }> = [
+  { label: "morning", time: "08:00" },
+  { label: "afternoon", time: "14:00" },
+  { label: "evening", time: "18:00" },
+  { label: "night", time: "21:00" },
 ];
 
 export function emptyMedication(today: string): MedicationValues {
@@ -48,30 +52,33 @@ interface Props {
   busy?: boolean;
   onSubmit: (values: MedicationValues) => void;
   onCancel?: () => void;
+  /** Translator from the session; English when the form is used on its own (tests). */
+  t?: T;
 }
 
 /**
  * Add / edit form for a medication schedule, in three numbered groups.
  * Every input has a label; an error summary links to each field, and errors sit under their inputs.
  */
-const FIELD_NAMES: Record<string, string> = {
-  name: "the medicine name",
-  dosage: "the dosage",
-  instructions: "the instructions",
-  times: "at least one time",
-  startDate: "the start date",
-  endDate: "the end date",
+const FIELD_NAMES: Record<string, MessageKey> = {
+  name: "fnName",
+  dosage: "fnDosage",
+  instructions: "fnInstructions",
+  times: "fnTimes",
+  startDate: "fnStart",
+  endDate: "fnEnd",
 };
 
 /** Turns raw validation text from the server into a sentence that says how to fix it. */
-export function friendlyFieldErrors(fields: Record<string, string>): Record<string, string> {
+export function friendlyFieldErrors(fields: Record<string, string>, t: T = english): Record<string, string> {
   return Object.fromEntries(
     Object.entries(fields).map(([key, message]) => {
-      const what = FIELD_NAMES[key.split(".")[0] ?? key];
-      if (!what) return [key, message];
-      if (/too small|>=\s*1|required|expected/i.test(message)) return [key, `Enter ${what}.`];
-      if (/too big|<=/i.test(message)) return [key, `Make ${what} shorter.`];
-      if (/HH:mm/.test(message)) return [key, "Use a time like 08:00."];
+      const whatKey = FIELD_NAMES[key.split(".")[0] ?? key];
+      if (!whatKey) return [key, message];
+      const what = t(whatKey);
+      if (/too small|>=\s*1|required|expected/i.test(message)) return [key, fill(t("enterWhat"), { what })];
+      if (/too big|<=/i.test(message)) return [key, fill(t("shorterWhat"), { what })];
+      if (/HH:mm/.test(message)) return [key, t("useTimeLike")];
       return [key, message];
     }),
   );
@@ -86,10 +93,11 @@ export function MedicationForm({
   busy = false,
   onSubmit,
   onCancel,
+  t = english,
 }: Props) {
   const [v, setV] = useState<MedicationValues>(initial);
   const uid = useId();
-  const fields = friendlyFieldErrors(rawFields);
+  const fields = friendlyFieldErrors(rawFields, t);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const openedWithError = useRef(Boolean(error));
   // Opening the form moves focus to its heading; an error summary takes focus itself instead.
@@ -110,7 +118,7 @@ export function MedicationForm({
   function setTime(i: number, value: string) {
     set(
       "times",
-      v.times.map((t, j) => (j === i ? value : t)),
+      v.times.map((tm, j) => (j === i ? value : tm)),
     );
   }
   function toggleDay(d: number) {
@@ -121,7 +129,7 @@ export function MedicationForm({
       if (v.times.length > 1)
         set(
           "times",
-          v.times.filter((t) => t !== time),
+          v.times.filter((tm) => tm !== time),
         );
     } else if (v.times.length < 8) {
       set("times", [...v.times, time].sort());
@@ -141,20 +149,18 @@ export function MedicationForm({
       <h2 tabIndex={-1} ref={headingRef}>
         {title}
       </h2>
-      {error ? (
-        <ErrorSummary title="There is a problem" message={error} fields={fields} fieldIds={ids} />
-      ) : null}
+      {error ? <ErrorSummary title={t("errorTitle")} message={error} fields={fields} fieldIds={ids} /> : null}
 
       <fieldset className="form-group">
         <legend>
           <span className="step-num" aria-hidden="true">
             1
           </span>
-          What is the medicine?
+          {t("stepWhat")}
         </legend>
         <Field
           id={ids.name}
-          label="Medicine name"
+          label={t("medName")}
           value={v.name}
           onChange={(e) => set("name", e.target.value)}
           error={fields.name}
@@ -163,8 +169,8 @@ export function MedicationForm({
         />
         <Field
           id={ids.dosage}
-          label="Dosage"
-          hint="For example: 500 mg, 1 tablet"
+          label={t("dosage")}
+          hint={t("dosageHint")}
           value={v.dosage}
           onChange={(e) => set("dosage", e.target.value)}
           error={fields.dosage}
@@ -173,8 +179,8 @@ export function MedicationForm({
         />
         <Field
           id={ids.instructions}
-          label="Instructions (optional)"
-          hint="For example: after food"
+          label={t("instructionsOpt")}
+          hint={t("instructionsHint")}
           value={v.instructions}
           onChange={(e) => set("instructions", e.target.value)}
           error={fields.instructions}
@@ -187,10 +193,10 @@ export function MedicationForm({
           <span className="step-num" aria-hidden="true">
             2
           </span>
-          When is it taken?
+          {t("stepWhen")}
         </legend>
         <p className="hint" id={`${uid}-chips`}>
-          Tap a time of day, or type an exact time below.
+          {t("chipsHint")}
         </p>
         <div className="chips" role="group" aria-labelledby={`${uid}-chips`}>
           {TIME_CHIPS.map((c) => (
@@ -202,14 +208,14 @@ export function MedicationForm({
               onClick={() => toggleChip(c.time)}
             >
               {v.times.includes(c.time) ? <Icon name="check" /> : null}
-              {c.label} {c.time}
+              {t(c.label)} {c.time}
             </button>
           ))}
         </div>
         {v.times.map((time, i) => (
           <div key={i} className="time-row">
             <div className="field">
-              <label htmlFor={`${uid}-time-${i}`}>Time {i + 1}</label>
+              <label htmlFor={`${uid}-time-${i}`}>{fill(t("timeN"), { n: i + 1 })}</label>
               <input
                 id={`${uid}-time-${i}`}
                 type="time"
@@ -229,7 +235,7 @@ export function MedicationForm({
                   )
                 }
               >
-                Remove time {i + 1}
+                {fill(t("removeTimeN"), { n: i + 1 })}
               </button>
             ) : null}
           </div>
@@ -241,17 +247,17 @@ export function MedicationForm({
             onClick={() => set("times", [...v.times, "20:00"])}
           >
             <Icon name="plus" />
-            Add a time
+            {t("addATime")}
           </button>
         ) : null}
         {fields.times ? <p className="error">{fields.times}</p> : null}
 
         <fieldset className="field">
-          <legend>Days (leave all unticked for every day)</legend>
+          <legend>{t("daysLegend")}</legend>
           <div className="row wrap">
-            {WEEKDAYS.map((name, d) => (
-              <label key={name} className="check">
-                <input type="checkbox" checked={v.days.includes(d)} onChange={() => toggleDay(d)} /> {name}
+            {WEEKDAY_KEYS.map((key, d) => (
+              <label key={key} className="check">
+                <input type="checkbox" checked={v.days.includes(d)} onChange={() => toggleDay(d)} /> {t(key)}
               </label>
             ))}
           </div>
@@ -263,12 +269,12 @@ export function MedicationForm({
           <span className="step-num" aria-hidden="true">
             3
           </span>
-          For how long?
+          {t("stepHowLong")}
         </legend>
         <div className="row wrap">
           <Field
             id={ids.startDate}
-            label="Start date"
+            label={t("startDate")}
             type="date"
             value={v.startDate}
             onChange={(e) => set("startDate", e.target.value)}
@@ -277,7 +283,7 @@ export function MedicationForm({
           />
           <Field
             id={ids.endDate}
-            label="End date (optional)"
+            label={t("endDateOpt")}
             type="date"
             value={v.endDate}
             onChange={(e) => set("endDate", e.target.value)}
@@ -286,17 +292,17 @@ export function MedicationForm({
         </div>
         <label className="check">
           <input type="checkbox" checked={v.active} onChange={(e) => set("active", e.target.checked)} />{" "}
-          Active (send reminders)
+          {t("activeLabel")}
         </label>
       </fieldset>
 
       <div className="row wrap">
         <button type="submit" className="btn btn-primary btn-big" disabled={busy}>
-          {busy ? "Saving…" : submitLabel}
+          {busy ? t("saving") : submitLabel}
         </button>
         {onCancel ? (
           <button type="button" className="btn btn-ghost" onClick={onCancel}>
-            Cancel
+            {t("cancel")}
           </button>
         ) : null}
       </div>

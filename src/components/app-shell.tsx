@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span>
               {t("appName")}
               <span className="brand-sub">
-                {profile.elderName} · {member.name} ({member.role})
+                {profile.elderName} · {member.name} ({t(`role_${member.role}`)})
               </span>
             </span>
           </p>

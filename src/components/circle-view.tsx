@@ -6,7 +6,9 @@ import { useCallback, useEffect, useState } from "react";
 import type { ProfileSettings } from "@/lib/domain/types";
 import { api, ApiError } from "./api";
 import { Field, FormError } from "./field";
+import { Skeleton } from "./feedback";
 import { Icon } from "./icon";
+import { fill } from "@/lib/i18n";
 import { useSession } from "./session-context";
 
 interface PublicMember {
@@ -19,23 +21,34 @@ interface PublicMember {
   revokedAt: string | null;
 }
 
-function NewPasscode({ name, passcode, code, onClose }: { name: string; passcode: string; code: string; onClose: () => void }) {
+function NewPasscode({
+  name,
+  passcode,
+  code,
+  onClose,
+}: {
+  name: string;
+  passcode: string;
+  code: string;
+  onClose: () => void;
+}) {
+  const { t } = useSession();
   return (
     <section className="card credentials" aria-labelledby="newpass-title">
-      <h2 id="newpass-title">Share these with {name}</h2>
-      <p>The passcode is shown only once. Give it to {name} in person or by phone.</p>
+      <h2 id="newpass-title">{fill(t("shareWith"), { name })}</h2>
+      <p>{fill(t("shownOnce"), { name })}</p>
       <dl className="cred-list">
-        <dt>Profile code</dt>
+        <dt>{t("profileCode")}</dt>
         <dd>
           <code>{code}</code>
         </dd>
-        <dt>Passcode for {name}</dt>
+        <dt>{fill(t("passcodeFor"), { name })}</dt>
         <dd>
           <code>{passcode}</code>
         </dd>
       </dl>
       <button type="button" className="btn btn-primary" onClick={onClose}>
-        Done
+        {t("done")}
       </button>
     </section>
   );
@@ -43,7 +56,7 @@ function NewPasscode({ name, passcode, code, onClose }: { name: string; passcode
 
 /** Inline editor for a member's email; an empty value removes the address. */
 function EmailEditor({ member, onSaved }: { member: PublicMember; onSaved: () => void }) {
-  const { announce } = useSession();
+  const { announce, t } = useSession();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(member.email ?? "");
   const [error, setError] = useState<string | undefined>();
@@ -55,7 +68,7 @@ function EmailEditor({ member, onSaved }: { member: PublicMember; onSaved: () =>
     setError(undefined);
     try {
       await api(`/api/members/${member.id}`, { method: "PATCH", body: { email: value.trim() || null } });
-      announce(`Email for ${member.name} saved`);
+      announce(fill(t("emailSaved"), { name: member.name }));
       setOpen(false);
       onSaved();
     } catch (err) {
@@ -68,20 +81,32 @@ function EmailEditor({ member, onSaved }: { member: PublicMember; onSaved: () =>
   if (!open) {
     return (
       <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>
-        {member.email ? "Change email" : "Add email"}
-        <span className="sr-only"> for {member.name}</span>
+        {member.email ? t("changeEmail") : t("addEmail")}
+        <span className="sr-only">{fill(t("forName"), { name: member.name })}</span>
       </button>
     );
   }
   return (
-    <form onSubmit={save} noValidate className="inline-form" aria-label={`Email for ${member.name}`}>
-      <Field label={`Email for ${member.name}`} type="email" value={value} onChange={(e) => setValue(e.target.value)} error={error} maxLength={254} />
+    <form
+      onSubmit={save}
+      noValidate
+      className="inline-form"
+      aria-label={fill(t("emailFor"), { name: member.name })}
+    >
+      <Field
+        label={fill(t("emailFor"), { name: member.name })}
+        type="email"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        error={error}
+        maxLength={254}
+      />
       <div className="row">
         <button type="submit" className="btn btn-primary" disabled={busy}>
-          Save email
+          {t("saveEmail")}
         </button>
         <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
-          Cancel
+          {t("cancel")}
         </button>
       </div>
     </form>
@@ -89,11 +114,12 @@ function EmailEditor({ member, onSaved }: { member: PublicMember; onSaved: () =>
 }
 
 function SettingsForm({ initial, onSaved }: { initial: ProfileSettings; onSaved: () => void }) {
-  const { announce } = useSession();
+  const { announce, t } = useSession();
   const [s, setS] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const num = (k: keyof ProfileSettings) => (e: React.ChangeEvent<HTMLInputElement>) => setS({ ...s, [k]: Number(e.target.value) });
+  const num = (k: keyof ProfileSettings) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setS({ ...s, [k]: Number(e.target.value) });
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -101,7 +127,7 @@ function SettingsForm({ initial, onSaved }: { initial: ProfileSettings; onSaved:
     setError(null);
     try {
       await api("/api/settings", { method: "PUT", body: s });
-      announce("Reminder settings saved");
+      announce(t("settingsSaved"));
       onSaved();
     } catch (err) {
       setError((err as Error).message);
@@ -112,15 +138,33 @@ function SettingsForm({ initial, onSaved }: { initial: ProfileSettings; onSaved:
 
   return (
     <form className="card" onSubmit={save} aria-labelledby="settings-title">
-      <h2 id="settings-title">Reminders and escalation (elder decides)</h2>
-      <Field label="Upcoming dose email, minutes before" type="number" min={5} max={120} value={s.upcomingLeadMin} onChange={num("upcomingLeadMin")} />
-      <Field label="Missed dose email to me, minutes after" type="number" min={10} max={180} value={s.missedGraceMin} onChange={num("missedGraceMin")} />
+      <h2 id="settings-title">{t("settingsTitle")}</h2>
+      <Field
+        label={t("upcomingLead")}
+        type="number"
+        min={5}
+        max={120}
+        value={s.upcomingLeadMin}
+        onChange={num("upcomingLeadMin")}
+      />
+      <Field
+        label={t("missedGrace")}
+        type="number"
+        min={10}
+        max={180}
+        value={s.missedGraceMin}
+        onChange={num("missedGraceMin")}
+      />
       <label className="check">
-        <input type="checkbox" checked={s.escalateToCircle} onChange={(e) => setS({ ...s, escalateToCircle: e.target.checked })} /> Tell my care circle if I
-        miss a dose
+        <input
+          type="checkbox"
+          checked={s.escalateToCircle}
+          onChange={(e) => setS({ ...s, escalateToCircle: e.target.checked })}
+        />{" "}
+        {t("escalate")}
       </label>
       <Field
-        label="Tell the circle after, minutes"
+        label={t("escalateAfter")}
         type="number"
         min={15}
         max={180}
@@ -130,7 +174,7 @@ function SettingsForm({ initial, onSaved }: { initial: ProfileSettings; onSaved:
       />
       <FormError message={error} />
       <button type="submit" className="btn btn-primary" disabled={busy}>
-        {busy ? "Saving…" : "Save settings"}
+        {busy ? t("saving") : t("saveSettings")}
       </button>
     </form>
   );
@@ -141,7 +185,13 @@ export function CircleView() {
   const router = useRouter();
   const [members, setMembers] = useState<PublicMember[] | null>(null);
   const [shown, setShown] = useState<{ name: string; passcode: string } | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", role: "family" as "family" | "caretaker", permission: "view" as "view" | "manage", notify: true });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    role: "family" as "family" | "caretaker",
+    permission: "view" as "view" | "manage",
+    notify: true,
+  });
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -171,7 +221,7 @@ export function CircleView() {
       });
       setShown({ name: res.member.name, passcode: res.passcode });
       setForm({ ...form, name: "", email: "" });
-      announce(`${res.member.name} added`);
+      announce(fill(t("memberAdded"), { name: res.member.name }));
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -185,19 +235,22 @@ export function CircleView() {
     setError(null);
     try {
       if (action === "revoke") {
-        if (!window.confirm(`Revoke access for ${m.name}? They are logged out at once.`)) return;
+        if (!window.confirm(fill(t("confirmRevoke"), { name: m.name }))) return;
         await api(`/api/members/${m.id}`, { method: "DELETE" });
-        announce(`${m.name} no longer has access`);
+        announce(fill(t("memberRevoked"), { name: m.name }));
       } else if (action === "reset") {
-        if (!window.confirm(`Create a new passcode for ${m.name}? The old one stops working and ${m.name} is logged out on other devices.`)) return;
+        if (!window.confirm(fill(t("confirmNewPass"), { name: m.name }))) return;
         const res = await api<{ passcode: string }>(`/api/members/${m.id}/passcode`, { method: "POST" });
         setShown({ name: m.name, passcode: res.passcode });
       } else if (action === "toggle-permission") {
-        await api(`/api/members/${m.id}`, { method: "PATCH", body: { permission: m.permission === "view" ? "manage" : "view" } });
-        announce(`${m.name} permission changed`);
+        await api(`/api/members/${m.id}`, {
+          method: "PATCH",
+          body: { permission: m.permission === "view" ? "manage" : "view" },
+        });
+        announce(fill(t("memberPermChanged"), { name: m.name }));
       } else {
         await api(`/api/members/${m.id}`, { method: "PATCH", body: { notify: !m.notify } });
-        announce(`${m.name} email alerts ${m.notify ? "off" : "on"}`);
+        announce(fill(t(m.notify ? "memberAlertsOff" : "memberAlertsOn"), { name: m.name }));
       }
       await load();
     } catch (err) {
@@ -217,11 +270,18 @@ export function CircleView() {
           {t("seeActivity")}
         </Link>
       </div>
-      <p className="muted">
-        {profile.elderName} decides who is in the circle, what they can do, and when they are told about missed doses.
-      </p>
-      {!can.manageCircle ? <p className="notice">Only {profile.elderName} can add or remove members and change reminder settings.</p> : null}
-      {shown ? <NewPasscode name={shown.name} passcode={shown.passcode} code={profile.code} onClose={() => setShown(null)} /> : null}
+      <p className="muted">{fill(t("circleIntro"), { name: profile.elderName })}</p>
+      {!can.manageCircle ? (
+        <p className="notice">{fill(t("onlyElderNotice"), { name: profile.elderName })}</p>
+      ) : null}
+      {shown ? (
+        <NewPasscode
+          name={shown.name}
+          passcode={shown.passcode}
+          code={profile.code}
+          onClose={() => setShown(null)}
+        />
+      ) : null}
       {error ? (
         <p role="alert" className="form-error">
           {error}
@@ -229,46 +289,68 @@ export function CircleView() {
       ) : null}
 
       {members === null ? (
-        <p aria-busy="true">{t("loading")}</p>
+        <Skeleton label={t("loading")} />
       ) : (
         <table className="table table-stack">
-          <caption>Members with access</caption>
+          <caption>{t("membersCaption")}</caption>
           <thead>
             <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Role</th>
-              <th scope="col">Access</th>
-              <th scope="col">Email alerts</th>
-              {can.manageCircle ? <th scope="col">Actions</th> : null}
+              <th scope="col">{t("colName")}</th>
+              <th scope="col">{t("colRole")}</th>
+              <th scope="col">{t("colAccess")}</th>
+              <th scope="col">{t("colAlerts")}</th>
+              {can.manageCircle ? <th scope="col">{t("colActions")}</th> : null}
             </tr>
           </thead>
           <tbody>
             {active.map((m) => (
               <tr key={m.id}>
                 <th scope="row">
-                  {m.name} {m.id === me.id ? <span className="badge">You</span> : null}
+                  {m.name} {m.id === me.id ? <span className="badge">{t("you")}</span> : null}
                 </th>
-                <td data-label="Role">{m.role}</td>
-                <td data-label="Access">{m.role === "elder" ? "full (owner)" : m.permission === "manage" ? "view and manage" : "view only"}</td>
-                <td data-label="Email alerts">{m.email ? (m.notify ? "on" : "off") : "no email"}</td>
+                <td data-label={t("colRole")}>{t(`role_${m.role}`)}</td>
+                <td data-label={t("colAccess")}>
+                  {m.role === "elder"
+                    ? t("accessFull")
+                    : m.permission === "manage"
+                      ? t("accessManage")
+                      : t("accessView")}
+                </td>
+                <td data-label={t("colAlerts")}>
+                  {m.email ? (m.notify ? t("alertsOn") : t("alertsOff")) : t("noEmailShort")}
+                </td>
                 {can.manageCircle ? (
-                  <td data-label="Actions">
+                  <td data-label={t("colActions")}>
                     {m.role !== "elder" ? (
                       <div className="row wrap">
                         <EmailEditor member={m} onSaved={() => void load()} />
-                        <button type="button" className="btn btn-ghost" onClick={() => void act(m, "toggle-permission")}>
-                          {m.permission === "view" ? "Allow manage" : "Make view only"}
-                          <span className="sr-only"> for {m.name}</span>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => void act(m, "toggle-permission")}
+                        >
+                          {m.permission === "view" ? t("allowManage") : t("makeViewOnly")}
+                          <span className="sr-only">{fill(t("forName"), { name: m.name })}</span>
                         </button>
-                        <button type="button" className="btn btn-ghost" onClick={() => void act(m, "toggle-notify")}>
-                          Alerts {m.notify ? "off" : "on"}
-                          <span className="sr-only"> for {m.name}</span>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => void act(m, "toggle-notify")}
+                        >
+                          {m.notify ? t("alertsTurnOff") : t("alertsTurnOn")}
+                          <span className="sr-only">{fill(t("forName"), { name: m.name })}</span>
                         </button>
                         <button type="button" className="btn btn-ghost" onClick={() => void act(m, "reset")}>
-                          New passcode<span className="sr-only"> for {m.name}</span>
+                          {t("newPasscode")}
+                          <span className="sr-only">{fill(t("forName"), { name: m.name })}</span>
                         </button>
-                        <button type="button" className="btn btn-danger" onClick={() => void act(m, "revoke")}>
-                          Revoke<span className="sr-only"> {m.name}</span>
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          onClick={() => void act(m, "revoke")}
+                        >
+                          {t("revoke")}
+                          <span className="sr-only"> {m.name}</span>
                         </button>
                       </div>
                     ) : (
@@ -281,7 +363,8 @@ export function CircleView() {
                           }}
                         />
                         <button type="button" className="btn btn-ghost" onClick={() => void act(m, "reset")}>
-                          New passcode<span className="sr-only"> for {m.name}</span>
+                          {t("newPasscode")}
+                          <span className="sr-only">{fill(t("forName"), { name: m.name })}</span>
                         </button>
                       </div>
                     )}
@@ -293,16 +376,23 @@ export function CircleView() {
         </table>
       )}
       {revoked.length > 0 ? (
-        <p className="muted">Revoked: {revoked.map((m) => m.name).join(", ")}</p>
+        <p className="muted">{fill(t("revokedList"), { names: revoked.map((m) => m.name).join(", ") })}</p>
       ) : null}
 
       {can.manageCircle ? (
         <>
           <form className="card" onSubmit={add} noValidate aria-labelledby="add-member-title">
-            <h2 id="add-member-title">Add a family member or caretaker</h2>
-            <Field label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} error={fields.name} required maxLength={80} />
+            <h2 id="add-member-title">{t("addMemberTitle")}</h2>
             <Field
-              label="Email (optional, for alerts)"
+              label={t("colName")}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              error={fields.name}
+              required
+              maxLength={80}
+            />
+            <Field
+              label={t("emailOptAlerts")}
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -311,30 +401,43 @@ export function CircleView() {
             />
             <div className="row wrap">
               <div className="field">
-                <label htmlFor="member-role">Role</label>
-                <select id="member-role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value === "caretaker" ? "caretaker" : "family" })}>
-                  <option value="family">Family</option>
-                  <option value="caretaker">Caretaker</option>
+                <label htmlFor="member-role">{t("colRole")}</label>
+                <select
+                  id="member-role"
+                  value={form.role}
+                  onChange={(e) =>
+                    setForm({ ...form, role: e.target.value === "caretaker" ? "caretaker" : "family" })
+                  }
+                >
+                  <option value="family">{t("optFamily")}</option>
+                  <option value="caretaker">{t("optCaretaker")}</option>
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="member-permission">Access</label>
+                <label htmlFor="member-permission">{t("colAccess")}</label>
                 <select
                   id="member-permission"
                   value={form.permission}
-                  onChange={(e) => setForm({ ...form, permission: e.target.value === "manage" ? "manage" : "view" })}
+                  onChange={(e) =>
+                    setForm({ ...form, permission: e.target.value === "manage" ? "manage" : "view" })
+                  }
                 >
-                  <option value="view">View only</option>
-                  <option value="manage">View and manage medicines</option>
+                  <option value="view">{t("optViewOnly")}</option>
+                  <option value="manage">{t("optManage")}</option>
                 </select>
               </div>
             </div>
             <label className="check">
-              <input type="checkbox" checked={form.notify} onChange={(e) => setForm({ ...form, notify: e.target.checked })} /> Send email alerts
+              <input
+                type="checkbox"
+                checked={form.notify}
+                onChange={(e) => setForm({ ...form, notify: e.target.checked })}
+              />{" "}
+              {t("sendAlerts")}
             </label>
             <FormError message={error && Object.keys(fields).length ? error : null} />
             <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? "Adding…" : "Add and create passcode"}
+              {busy ? t("adding") : t("addAndCreate")}
             </button>
           </form>
           <SettingsForm initial={profile.settings} onSaved={() => router.refresh()} />

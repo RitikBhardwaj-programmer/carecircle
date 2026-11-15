@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { groupByDayPart, nextDose, type DayPart } from "@/lib/domain/day-part";
-import { fill } from "@/lib/i18n";
+import { fill, type MessageKey } from "@/lib/i18n";
 import { api, formatDateTime } from "./api";
 import { useElderMode } from "./app-shell";
 import { Assistant } from "./assistant";
@@ -372,7 +372,7 @@ function CircleSummary({
                   <strong>
                     {a.name} <span className="muted">{a.dosage}</span>
                   </strong>
-                  <span>{formatStats(a.week)}</span>
+                  <span>{formatStats(a.week, t)}</span>
                 </span>
                 <span className="bar" aria-hidden="true">
                   <span style={{ width: `${a.week.rate ?? 0}%` }} />
@@ -398,8 +398,8 @@ function CircleSummary({
                       <th scope="row">
                         {a.name} <span className="muted">{a.dosage}</span>
                       </th>
-                      <td>{formatStats(a.week)}</td>
-                      <td>{formatStats(a.month)}</td>
+                      <td>{formatStats(a.week, t)}</td>
+                      <td>{formatStats(a.month, t)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -412,7 +412,7 @@ function CircleSummary({
   );
 }
 
-function formatStats(s: Stats): string {
+function formatStats(s: Stats, t: (k: MessageKey) => string): string {
   if (s.rate === null) return "—";
-  return `${s.rate}% (${s.taken}/${s.due} taken${s.missed ? `, ${s.missed} missed` : ""})`;
+  return `${s.rate}% (${fill(t("summaryTakenMissed"), { taken: `${s.taken}/${s.due}`, missed: s.missed })})`;
 }

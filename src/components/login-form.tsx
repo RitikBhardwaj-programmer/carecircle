@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { translate, type MessageKey } from "@/lib/i18n";
 import { api, ApiError } from "./api";
 import { Field, FormError } from "./field";
 
+const english = (k: MessageKey) => translate("en", k);
+
 /** Profile code + passcode login. The server gives one message for every failure. */
-export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
+export function LoginForm({
+  onSuccess,
+  t = english,
+}: {
+  onSuccess: () => void;
+  t?: (k: MessageKey) => string;
+}) {
   const [code, setCode] = useState("");
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +39,10 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={submit} noValidate aria-labelledby="login-title" className="card">
-      <h2 id="login-title">Open a care profile</h2>
-      <p className="muted">For the elder, family members and caretakers. Use the passcode the elder gave you.</p>
+      <h2 id="login-title">{t("loginTitle")}</h2>
+      <p className="muted">{t("loginIntro")}</p>
       <Field
-        label="Profile code"
+        label={t("profileCode")}
         name="code"
         autoComplete="username"
         placeholder="CARE-XXXX-XXXX"
@@ -44,11 +53,11 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         maxLength={14}
       />
       <Field
-        label="Your passcode"
+        label={t("yourPasscode")}
         name="passcode"
         type="password"
         autoComplete="current-password"
-        hint="8 letters or digits"
+        hint={t("passcodeHint")}
         value={passcode}
         onChange={(e) => setPasscode(e.target.value)}
         error={fields.passcode}
@@ -57,7 +66,7 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       />
       <FormError message={error} />
       <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-        {busy ? "Opening…" : "Open profile"}
+        {busy ? t("opening") : t("openProfile")}
       </button>
     </form>
   );
