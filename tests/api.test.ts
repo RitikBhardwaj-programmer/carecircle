@@ -13,14 +13,25 @@ import { POST as createProfile } from "@/app/api/profiles/route";
 import { GET as listAppts, POST as createAppt } from "@/app/api/appointments/route";
 import { GET as activity } from "@/app/api/activity/route";
 import { PUT as putSettings } from "@/app/api/settings/route";
+import { POST as explain } from "@/app/api/ai/explain/route";
+import { POST as scan } from "@/app/api/ai/scan/route";
+import { POST as resetPass } from "@/app/api/members/[id]/passcode/route";
+import { PATCH as patchMember } from "@/app/api/members/[id]/route";
+import { setTextModelForTesting } from "@/lib/infra/gemini";
 import { setIdTokenVerifierForTesting } from "@/lib/infra/oidc";
 import { setDepsForTesting } from "@/lib/server/container";
 import { makeDeps, medInput } from "./helpers";
 
 const ORIGIN = "http://localhost:3005";
+let requestCounter = 0;
 
 function req(method: string, path: string, opts: { body?: unknown; cookie?: string; headers?: Record<string, string> } = {}) {
-  const headers: Record<string, string> = { host: "localhost:3005", ...opts.headers };
+  requestCounter += 1;
+  const headers: Record<string, string> = {
+    host: "localhost:3005",
+    "x-forwarded-for": `198.51.100.${requestCounter % 250}`,
+    ...opts.headers,
+  };
   if (method !== "GET" && !("origin" in headers)) headers.origin = ORIGIN;
   if (opts.cookie) headers.cookie = opts.cookie;
   if (opts.body !== undefined) headers["content-type"] = "application/json";
@@ -210,5 +221,83 @@ describe("cron route (R12)", () => {
     const token = /\/dose\/([A-Za-z0-9_.-]+)/.exec(env.mailer.sent[0]?.text ?? "")?.[1];
     const res = await doseLink(req("POST", "/api/dose-link", { body: { token } }));
     expect(await res.json()).toMatchObject({ status: "taken" });
+  });
+});
+
+describe("hardening from review", () => {
+  it("uses the last X-Forwarded-For hop, so a spoofed first hop cannot dodge the limit", async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      const r = await createProfile(
+        req("POST", "/api/profiles", { body: { elderName: `Spoof ${i}` }, headers: { "x-forwarded-for": `10.9.9.${i}, 203.0.113.77` } }),
+      );
+      statuses.push(r.status);
+    }
+    expect(statuses.slice(0, 3)).toEqual([201, 201, 201]);
+    expect(statuses).toContain(429);
+  });
+
+  it("a passcode reset logs out the member's old sessions; the elder's own reset keeps this browser in", async () => {
+    const p = await newProfile();
+    const added = await (
+      await addMember(req("POST", "/api/members", { cookie: p.cookie, body: { name: "Ravi", role: "family", permission: "manage" } }))
+    ).json();
+    const ravi = cookieOf(await login(req("POST", "/api/auth/login", { body: { code: p.code, passcode: added.passcode } })));
+    expect((await getMe(req("GET", "/api/me", { cookie: ravi }))).status).toBe(200);
+    const reset = await resetPass(req("POST", `/api/members/${added.member.id}/passcode`, { cookie: p.cookie }), ctx(added.member.id));
+    expect(reset.status).toBe(200);
+    expect((await getMe(req("GET", "/api/me", { cookie: ravi }))).status).toBe(401);
+
+    const me = await (await getMe(req("GET", "/api/me", { cookie: p.cookie }))).json();
+    const self = await resetPass(req("POST", `/api/members/${me.member.id}/passcode`, { cookie: p.cookie }), ctx(me.member.id));
+    const newCookie = cookieOf(self);
+    expect(newCookie).toMatch(/^cc_session=/);
+    expect((await getMe(req("GET", "/api/me", { cookie: p.cookie }))).status).toBe(401);
+    expect((await getMe(req("GET", "/api/me", { cookie: newCookie }))).status).toBe(200);
+  });
+
+  it("the elder can set an email later; settings and member changes work over HTTP", async () => {
+    const p = await newProfile(null);
+    const me = await (await getMe(req("GET", "/api/me", { cookie: p.cookie }))).json();
+    const res = await patchMember(
+      req("PATCH", `/api/members/${me.member.id}`, { cookie: p.cookie, body: { email: "asha@example.com" } }),
+      ctx(me.member.id),
+    );
+    expect((await res.json()).member.email).toBe("asha@example.com");
+    const s = await putSettings(
+      req("PUT", "/api/settings", { cookie: p.cookie, body: { upcomingLeadMin: 10, missedGraceMin: 20, escalateToCircle: false, escalateAfterMin: 90 } }),
+    );
+    expect(s.status).toBe(200);
+  });
+
+  it("AI routes: explain returns text with the disclaimer, scan returns drafts and rejects bad files", async () => {
+    setTextModelForTesting({
+      generate: async (r) =>
+        r.jsonSchema ? JSON.stringify({ medications: [{ name: "Amlodipine", dosage: "5 mg", instructions: "", times: ["08:00"] }] }) : "**What it is for** blood pressure",
+    });
+    const p = await newProfile();
+    const ex = await (await explain(req("POST", "/api/ai/explain", { cookie: p.cookie, body: { name: "Amlodipine-http", language: "en" } }))).json();
+    expect(ex.text).toContain("not medical advice");
+    expect(ex.text).not.toContain("**");
+
+    const form = new FormData();
+    form.append("image", new File([new Uint8Array([1, 2, 3])], "rx.png", { type: "image/png" }));
+    const scanReq = new NextRequest(`${ORIGIN}/api/ai/scan`, {
+      method: "POST",
+      headers: { host: "localhost:3005", origin: ORIGIN, cookie: p.cookie, "x-forwarded-for": "192.0.2.10" },
+      body: form,
+    });
+    const scanned = await (await scan(scanReq)).json();
+    expect(scanned.drafts[0].name).toBe("Amlodipine");
+
+    const bad = new FormData();
+    bad.append("image", new File(["hello"], "rx.txt", { type: "text/plain" }));
+    const badReq = new NextRequest(`${ORIGIN}/api/ai/scan`, {
+      method: "POST",
+      headers: { host: "localhost:3005", origin: ORIGIN, cookie: p.cookie, "x-forwarded-for": "192.0.2.11" },
+      body: bad,
+    });
+    expect((await scan(badReq)).status).toBe(400);
+    setTextModelForTesting(null);
   });
 });
