@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { groupByDayPart, nextDose, type DayPart } from "@/lib/domain/day-part";
 import { fill } from "@/lib/i18n";
 import { api, formatDateTime } from "./api";
@@ -49,6 +49,8 @@ export function HomeView() {
   const [appts, setAppts] = useState<Appt[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  /** After a mark or an undo the button pressed disappears, so focus moves to its replacement. */
+  const focusNext = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -70,12 +72,21 @@ export function HomeView() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const selector = focusNext.current;
+    // Wait until the busy state is cleared, or the new button is still disabled and cannot take focus.
+    if (!selector || busy) return;
+    focusNext.current = null;
+    document.querySelector<HTMLElement>(selector)?.focus();
+  }, [data, busy]);
+
   const undo = useCallback(
     async (doseId: string) => {
       setBusy(doseId);
       try {
         await api("/api/doses", { method: "DELETE", body: { doseId } });
         announce(t("undone"));
+        focusNext.current = `[data-mark-for="${doseId}"]`;
         await load();
       } catch (e) {
         announce((e as Error).message);
@@ -95,6 +106,7 @@ export function HomeView() {
           label: t("undo"),
           onAction: () => void undo(doseId),
         });
+        focusNext.current = `[data-undo-for="${doseId}"]`;
         await load();
       } catch (e) {
         announce((e as Error).message);
@@ -203,22 +215,27 @@ export function HomeView() {
               {card(next)}
             </section>
           ) : null}
-          {groupByDayPart(rest).map((g) => (
-            <section key={g.part} className="daypart" aria-labelledby={`part-${g.part}`}>
-              <h2 id={`part-${g.part}`}>
-                <Icon name={PART_ICON[g.part]} />
-                {t(g.part)}
-                <span className="daypart-count">({g.doses.length})</span>
-              </h2>
-              <ul className="dose-list">
-                {g.doses.map((d) => (
-                  <li key={d.id}>{card(d)}</li>
-                ))}
-              </ul>
-            </section>
-          ))}
         </>
       )}
+    </>
+  );
+
+  const groups = (
+    <>
+      {groupByDayPart(rest).map((g) => (
+        <section key={g.part} className="daypart" aria-labelledby={`part-${g.part}`}>
+          <h2 id={`part-${g.part}`}>
+            <Icon name={PART_ICON[g.part]} />
+            {t(g.part)}
+            <span className="daypart-count">({g.doses.length})</span>
+          </h2>
+          <ul className="dose-list">
+            {g.doses.map((d) => (
+              <li key={d.id}>{card(d)}</li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </>
   );
 
@@ -228,10 +245,11 @@ export function HomeView() {
       <section aria-labelledby="home-title" className="elder-home">
         {title}
         <ReadAloudButton text={spoken} lang={lang} label={t("readAloud")} stopLabel={t("stopReading")} />
-        {noEmail}
         {error ? <p role="alert">{error}</p> : null}
-        <Assistant onMark={mark} />
         {today}
+        {noEmail}
+        <Assistant onMark={mark} />
+        {groups}
       </section>
     );
   }
@@ -242,8 +260,9 @@ export function HomeView() {
       <ReadAloudButton text={spoken} lang={lang} label={t("readAloud")} stopLabel={t("stopReading")} />
       {noEmail}
       {error ? <p role="alert">{error}</p> : null}
-      <CircleSummary data={data} appts={appts} part="cards" />
       {today}
+      <CircleSummary data={data} appts={appts} part="cards" />
+      {groups}
       <Assistant onMark={mark} />
       <CircleSummary data={data} appts={appts} part="bars" />
 

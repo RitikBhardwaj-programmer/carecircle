@@ -37,14 +37,31 @@ const STATE_ICON: Record<DoseCardState, IconName> = {
 };
 
 function clockTime(iso: string, timeZone: string | undefined): string {
-  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(new Date(iso));
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone,
+  }).format(new Date(iso));
 }
 
-export function DoseCard({ dose, canWrite, busy = false, large = false, timeZone, t, onMark, onUndo }: DoseCardProps) {
+export function DoseCard({
+  dose,
+  canWrite,
+  busy = false,
+  large = false,
+  timeZone,
+  t,
+  onMark,
+  onUndo,
+}: DoseCardProps) {
   const headingId = `dose-${dose.id}`;
   const done = dose.state === "taken" || dose.state === "skipped";
   return (
-    <article className={`dose-card state-${dose.state}${large ? " dose-card-large" : ""}`} aria-labelledby={headingId}>
+    <article
+      className={`dose-card state-${dose.state}${large ? " dose-card-large" : ""}`}
+      aria-labelledby={headingId}
+    >
       <div className="dose-main">
         <p className="dose-time">{dose.time}</p>
         <h3 id={headingId} className="dose-name">
@@ -69,6 +86,7 @@ export function DoseCard({ dose, canWrite, busy = false, large = false, timeZone
             className="btn btn-primary btn-big"
             disabled={busy}
             onClick={() => onMark(dose.id, "taken")}
+            data-mark-for={dose.id}
             aria-describedby={headingId}
           >
             <Icon name="check" />
@@ -91,9 +109,10 @@ export function DoseCard({ dose, canWrite, busy = false, large = false, timeZone
         <div className="dose-actions">
           <button
             type="button"
-            className="btn btn-ghost btn-small"
+            className="btn btn-ghost"
             disabled={busy}
             onClick={() => onUndo(dose.id)}
+            data-undo-for={dose.id}
             aria-describedby={headingId}
           >
             <Icon name="undo" />

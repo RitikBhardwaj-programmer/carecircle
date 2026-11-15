@@ -267,6 +267,7 @@ a {
 .nav {
   list-style: none;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
   margin: 0 auto;
   padding: var(--space-1) var(--space-4);
@@ -760,6 +761,12 @@ input[type="checkbox"] {
   border: 3px solid var(--primary);
   background: var(--info-bg);
 }
+.next-dose .dose-card {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
 .next-dose .eyebrow {
   color: var(--primary);
 }
@@ -1133,7 +1140,8 @@ html.elder-mode .dose-card {
 }
 
 /* Phones: bottom tab bar */
-@media (max-width: 719px) {
+/* Phones and tablets: labelled bottom tab bar (six top-bar items do not fit below 1024 px) */
+@media (max-width: 1023px) {
   .mainnav {
     position: fixed;
     left: 0;
@@ -1176,7 +1184,8 @@ html.elder-mode .dose-card {
   .nav-label-short {
     display: block;
     max-width: 100%;
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
+    hyphens: manual;
   }
   .nav-wide-only {
     display: none;

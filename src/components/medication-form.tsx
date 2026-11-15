@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ErrorSummary } from "./feedback";
 import { Field } from "./field";
 import { Icon } from "./icon";
@@ -54,18 +54,48 @@ interface Props {
  * Add / edit form for a medication schedule, in three numbered groups.
  * Every input has a label; an error summary links to each field, and errors sit under their inputs.
  */
+const FIELD_NAMES: Record<string, string> = {
+  name: "the medicine name",
+  dosage: "the dosage",
+  instructions: "the instructions",
+  times: "at least one time",
+  startDate: "the start date",
+  endDate: "the end date",
+};
+
+/** Turns raw validation text from the server into a sentence that says how to fix it. */
+export function friendlyFieldErrors(fields: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, message]) => {
+      const what = FIELD_NAMES[key.split(".")[0] ?? key];
+      if (!what) return [key, message];
+      if (/too small|>=\s*1|required|expected/i.test(message)) return [key, `Enter ${what}.`];
+      if (/too big|<=/i.test(message)) return [key, `Make ${what} shorter.`];
+      if (/HH:mm/.test(message)) return [key, "Use a time like 08:00."];
+      return [key, message];
+    }),
+  );
+}
+
 export function MedicationForm({
   initial,
   submitLabel,
   title,
   error = null,
-  fields = {},
+  fields: rawFields = {},
   busy = false,
   onSubmit,
   onCancel,
 }: Props) {
   const [v, setV] = useState<MedicationValues>(initial);
   const uid = useId();
+  const fields = friendlyFieldErrors(rawFields);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const openedWithError = useRef(Boolean(error));
+  // Opening the form moves focus to its heading; an error summary takes focus itself instead.
+  useEffect(() => {
+    if (!openedWithError.current) headingRef.current?.focus();
+  }, []);
   const ids = {
     name: `${uid}-name`,
     dosage: `${uid}-dosage`,
@@ -108,7 +138,9 @@ export function MedicationForm({
         onSubmit(v);
       }}
     >
-      <h2>{title}</h2>
+      <h2 tabIndex={-1} ref={headingRef}>
+        {title}
+      </h2>
       {error ? (
         <ErrorSummary title="There is a problem" message={error} fields={fields} fieldIds={ids} />
       ) : null}

@@ -51,7 +51,7 @@ export function useElderMode(defaultOn: boolean): [boolean, (v: boolean) => void
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { profile, member, t, lang, setLang, toast, dismissToast } = useSession();
+  const { profile, member, t, lang, setLang, toast, dismissToast, holdToast } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [elderMode, setElderMode] = useElderMode(member.role === "elder");
@@ -132,7 +132,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       {/* The only live region: screen readers hear each message once, sighted users see it as a toast. */}
-      <div role="status" aria-live="polite" className="toast-region">
+      <div
+        role="status"
+        aria-live="polite"
+        className="toast-region"
+        onMouseEnter={() => holdToast(true)}
+        onMouseLeave={() => holdToast(false)}
+        onFocus={() => holdToast(true)}
+        onBlur={() => holdToast(false)}
+      >
         {toast ? (
           <div className="toast" key={toast.id}>
             <p>

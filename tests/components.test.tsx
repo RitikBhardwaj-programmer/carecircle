@@ -4,7 +4,7 @@ import { afterEach, vi } from "vitest";
 import { DoseCard, type DoseCardProps } from "@/components/dose-card";
 import { Field } from "@/components/field";
 import { LoginForm } from "@/components/login-form";
-import { emptyMedication, MedicationForm } from "@/components/medication-form";
+import { emptyMedication, friendlyFieldErrors, MedicationForm } from "@/components/medication-form";
 import { translate } from "@/lib/i18n";
 import { axeViolations } from "./a11y";
 
@@ -164,5 +164,31 @@ describe("MedicationForm time chips (Stage 4)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ times: ["21:00"] }));
     expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe("friendlyFieldErrors (design review)", () => {
+  it("turns raw validation text into a sentence that says how to fix it", () => {
+    expect(
+      friendlyFieldErrors({
+        name: "Too small: expected string to have >=1 characters",
+        "times.0": "Use HH:mm (24 h)",
+        endDate: "End date must be on or after start date",
+      }),
+    ).toEqual({ name: "Enter the medicine name.", "times.0": "Use a time like 08:00.", endDate: "End date must be on or after start date" });
+  });
+
+  it("the form shows the friendly text next to the input", () => {
+    render(
+      <MedicationForm
+        initial={emptyMedication("2026-11-15")}
+        title="Add medication"
+        submitLabel="Save"
+        fields={{ name: "Too small: expected string to have >=1 characters" }}
+        error="Please check the highlighted fields."
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Medicine name")).toHaveAccessibleDescription("Enter the medicine name.");
   });
 });
