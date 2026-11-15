@@ -30,12 +30,17 @@ interface Context {
   doseLink?: string;
 }
 
-function layout(title: string, lines: string[], action?: { href: string; label: string }): string {
+/** Footer: why the person gets the email and how to stop it. */
+export function footerText(elderName: string): string {
+  return `Sent by CareCircle because you are in ${elderName}'s care circle. To stop these emails, ask ${elderName} to turn off your alerts (or remove your email) on the Care circle page.`;
+}
+
+function layout(title: string, lines: string[], footer: string, action?: { href: string; label: string }): string {
   const body = lines.map((l) => `<p style="font-size:18px;line-height:1.5;margin:0 0 12px">${escapeHtml(l)}</p>`);
   const button = action
     ? `<p><a href="${escapeHtml(action.href)}" style="display:inline-block;background:#0b3d91;color:#ffffff;padding:14px 24px;border-radius:8px;font-size:20px;text-decoration:none">${escapeHtml(action.label)}</a></p>`
     : "";
-  return `<!doctype html><html lang="en"><body style="font-family:Arial,sans-serif;color:#111827;max-width:560px;margin:auto;padding:16px"><h1 style="font-size:24px">${escapeHtml(title)}</h1>${body.join("")}${button}<p style="font-size:14px;color:#374151">Sent by CareCircle. You get this because you are in ${escapeHtml("this care circle")}.</p></body></html>`;
+  return `<!doctype html><html lang="en"><body style="font-family:Arial,sans-serif;color:#111827;max-width:560px;margin:auto;padding:16px"><h1 style="font-size:24px">${escapeHtml(title)}</h1>${body.join("")}${button}<p style="font-size:14px;color:#374151">${escapeHtml(footer)}</p></body></html>`;
 }
 
 /** Builds the email for one planned reminder. All user-supplied text is escaped. */
@@ -80,6 +85,7 @@ export function renderReminder(r: Reminder, ctx: Context): EmailMessage {
     throw new Error("Reminder has neither dose nor appointment");
   }
 
-  const text = [...lines, ...(action ? [`${action.label}: ${action.href}`] : [])].join("\n\n");
-  return { to: r.recipient.email, subject, text, html: layout(subject, lines, action), tag: r.type };
+  const footer = footerText(ctx.elderName);
+  const text = [...lines, ...(action ? [`${action.label}: ${action.href}`] : []), footer].join("\n\n");
+  return { to: r.recipient.email, subject, text, html: layout(subject, lines, footer, action), tag: r.type };
 }

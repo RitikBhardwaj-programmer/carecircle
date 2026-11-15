@@ -56,6 +56,7 @@ describe("email templates", () => {
     expect(msg.html).toContain("Mark as taken");
     expect(msg.text).toContain("https://care.example/dose/t");
     expect(msg.tag).toBe(type);
+    expect(msg.text).toContain("To stop these emails");
   });
 
   it("renders appointment reminders", () => {
