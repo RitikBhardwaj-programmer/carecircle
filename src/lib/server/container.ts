@@ -5,7 +5,9 @@ import { MemoryRepo } from "../repo/memory-repo";
 import type { Repository } from "../repo/repository";
 import type { Deps } from "../services/deps";
 
-let current: Deps | null = null;
+// Kept on globalThis because Next.js bundles route handlers and pages separately;
+// a plain module variable would give each bundle its own (in-memory) repository.
+const holder = globalThis as typeof globalThis & { __careCircleDeps?: Deps | null };
 
 async function createRepo(kind: "firestore" | "memory"): Promise<Repository> {
   if (kind === "memory") return new MemoryRepo();
@@ -16,9 +18,9 @@ async function createRepo(kind: "firestore" | "memory"): Promise<Repository> {
 
 /** Composition root: builds the real dependencies once per server instance. */
 export async function getDeps(): Promise<Deps> {
-  if (current) return current;
+  if (holder.__careCircleDeps) return holder.__careCircleDeps;
   const config = getConfig();
-  current = {
+  const deps: Deps = {
     repo: await createRepo(config.dataStore),
     mailer: createMailer(),
     now: () => new Date(),
@@ -26,10 +28,11 @@ export async function getDeps(): Promise<Deps> {
     secret: config.sessionSecret,
     appUrl: config.appUrl,
   };
-  return current;
+  holder.__careCircleDeps = deps;
+  return deps;
 }
 
 /** Test hook: replace the dependencies used by route handlers. */
 export function setDepsForTesting(deps: Deps | null): void {
-  current = deps;
+  holder.__careCircleDeps = deps;
 }
