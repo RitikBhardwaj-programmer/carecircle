@@ -73,8 +73,3 @@ export function googleCalendarLink(appt: Appointment, elderName: string): string
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
-
-export async function listActivity(deps: Deps, actor: Actor, limit = 100) {
-  authorize(actor, "read");
-  return deps.repo.listActivity(actor.profile.id, Math.min(Math.max(limit, 1), 200));
-}

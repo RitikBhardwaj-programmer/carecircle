@@ -5,10 +5,10 @@ import {
   createAppointment,
   deleteAppointment,
   googleCalendarLink,
-  listActivity,
   listAppointments,
   updateAppointment,
 } from "./appointments";
+import { listActivity } from "./activity";
 import { login, resolveSession } from "./auth";
 import {
   adherenceSummary,
