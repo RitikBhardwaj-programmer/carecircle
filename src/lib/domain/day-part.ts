@@ -17,7 +17,9 @@ export function dayPartOf(time: string): DayPart {
 }
 
 /** Groups doses by part of the day, keeping their order. Empty parts are left out. */
-export function groupByDayPart<T extends { time: string }>(doses: readonly T[]): Array<{ part: DayPart; doses: T[] }> {
+export function groupByDayPart<T extends { time: string }>(
+  doses: readonly T[],
+): Array<{ part: DayPart; doses: T[] }> {
   const groups = new Map<DayPart, T[]>();
   for (const dose of doses) {
     const part = dayPartOf(dose.time);

@@ -6,6 +6,9 @@ import { api, ApiError } from "./api";
 import { emptyMedication, MedicationForm, type MedicationValues } from "./medication-form";
 import { useSession } from "./session-context";
 import { ExplainButton, PrescriptionScan } from "./ai-tools";
+import { takeAssistDraft } from "./assistant";
+import { EmptyState, Skeleton } from "./feedback";
+import { Icon } from "./icon";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -52,6 +55,26 @@ export function MedicationsView() {
     void load();
   }, [load]);
 
+  // A medicine proposed by "Ask CareCircle" opens the form pre-filled; nothing is saved until Save.
+  useEffect(() => {
+    const draft = can.write ? takeAssistDraft("medication") : null;
+    if (!draft) return;
+    const base = emptyMedication(todayIn(profile.timezone));
+    const times = Array.isArray(draft.times)
+      ? draft.times.filter((x): x is string => typeof x === "string")
+      : [];
+    // Reading the draft from session storage must happen after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPrefill({
+      ...base,
+      name: typeof draft.name === "string" ? draft.name : "",
+      dosage: typeof draft.dosage === "string" ? draft.dosage : "",
+      instructions: typeof draft.instructions === "string" ? draft.instructions : "",
+      times: times.length ? times : base.times,
+    });
+    setEditing("new");
+  }, [can.write, profile.timezone]);
+
   async function save(v: MedicationValues) {
     setBusy(true);
     setError(null);
@@ -90,11 +113,14 @@ export function MedicationsView() {
   return (
     <section aria-labelledby="meds-title">
       <h1 id="meds-title">{t("navMedications")}</h1>
-      {!can.write ? <p className="notice">You have view-only access. Ask the elder for manage access to make changes.</p> : null}
+      {!can.write ? (
+        <p className="notice">You have view-only access. Ask the elder for manage access to make changes.</p>
+      ) : null}
 
       {can.write && editing === null ? (
         <div className="row wrap">
           <button type="button" className="btn btn-primary" onClick={() => setEditing("new")}>
+            <Icon name="plus" />
             Add medication
           </button>
         </div>
@@ -132,30 +158,53 @@ export function MedicationsView() {
       ) : null}
 
       {meds === null ? (
-        <p aria-busy="true">{t("loading")}</p>
+        <Skeleton label={t("loading")} />
       ) : meds.length === 0 ? (
-        <p>No medications yet.</p>
+        <EmptyState
+          icon="pill"
+          text={t("noMedicines")}
+          action={
+            can.write && editing === null
+              ? { label: t("addFirstMedicine"), onClick: () => setEditing("new") }
+              : undefined
+          }
+        />
       ) : (
         <ul className="card-list">
           {meds.map((m) => (
-            <li key={m.id} className="card">
-              <h2 className="h3">
-                {m.name} <span className="muted">{m.dosage}</span> {!m.active ? <span className="badge">Paused</span> : null}
-              </h2>
-              <p>
-                {m.times.join(", ")} · {m.days.length === 0 ? "Every day" : m.days.map((d) => WEEKDAYS[d]).join(", ")} · from {m.startDate}
-                {m.endDate ? ` to ${m.endDate}` : ""}
-              </p>
-              {m.instructions ? <p className="muted">{m.instructions}</p> : null}
-              <p className="muted small">Last changed by {m.updatedBy}</p>
-              <div className="row wrap">
+            <li key={m.id} className="card item-card">
+              <div className="item-main">
+                <h2 className="h3">
+                  <Icon name="pill" /> {m.name} <span className="muted">{m.dosage}</span>{" "}
+                  {!m.active ? <span className="badge">Paused</span> : null}
+                </h2>
+                <p>
+                  <Icon name="clock" /> {m.times.join(", ")} ·{" "}
+                  {m.days.length === 0 ? "Every day" : m.days.map((d) => WEEKDAYS[d]).join(", ")} · from{" "}
+                  {m.startDate}
+                  {m.endDate ? ` to ${m.endDate}` : ""}
+                </p>
+                {m.instructions ? <p className="muted">{m.instructions}</p> : null}
+                <p className="muted small">Last changed by {m.updatedBy}</p>
+              </div>
+              <div className="item-actions">
                 <ExplainButton name={m.name} dosage={m.dosage} />
                 {can.write ? (
                   <>
-                    <button type="button" className="btn btn-secondary" onClick={() => setEditing(m)} aria-label={`Edit ${m.name}`}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setEditing(m)}
+                      aria-label={`Edit ${m.name}`}
+                    >
                       Edit
                     </button>
-                    <button type="button" className="btn btn-danger" onClick={() => void remove(m)} aria-label={`Remove ${m.name}`}>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={() => void remove(m)}
+                      aria-label={`Remove ${m.name}`}
+                    >
                       Remove
                     </button>
                   </>

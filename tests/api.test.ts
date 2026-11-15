@@ -15,6 +15,7 @@ import { GET as activity } from "@/app/api/activity/route";
 import { PUT as putSettings } from "@/app/api/settings/route";
 import { POST as explain } from "@/app/api/ai/explain/route";
 import { POST as scan } from "@/app/api/ai/scan/route";
+import { POST as assistRoute } from "@/app/api/ai/assist/route";
 import { POST as resetPass } from "@/app/api/members/[id]/passcode/route";
 import { PATCH as patchMember } from "@/app/api/members/[id]/route";
 import { setTextModelForTesting } from "@/lib/infra/gemini";
@@ -335,5 +336,24 @@ describe("DELETE /api/doses (Undo)", () => {
 
     const log = await (await activity(req("GET", "/api/activity", { cookie: p.cookie }))).json();
     expect(log.activity.map((a: { action: string }) => a.action)).toContain("undid dose taken");
+  });
+});
+
+describe("POST /api/ai/assist", () => {
+  it("needs a session, validates the text, answers, and is rate limited", async () => {
+    setTextModelForTesting({ generate: async () => JSON.stringify({ type: "answer", reply: "Nothing is left." }) });
+    expect((await assistRoute(req("POST", "/api/ai/assist", { body: { text: "hi" } }))).status).toBe(401);
+    const p = await newProfile();
+    const ip = { "x-forwarded-for": "203.0.113.77" };
+    expect((await assistRoute(req("POST", "/api/ai/assist", { cookie: p.cookie, body: { text: "" }, headers: ip }))).status).toBe(400);
+    const ok = await assistRoute(req("POST", "/api/ai/assist", { cookie: p.cookie, body: { text: "What is left?", lang: "en" }, headers: ip }));
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ type: "answer", reply: "Nothing is left." });
+    const statuses: number[] = [];
+    for (let i = 0; i < 10; i += 1) {
+      statuses.push((await assistRoute(req("POST", "/api/ai/assist", { cookie: p.cookie, body: { text: "again" }, headers: ip }))).status);
+    }
+    expect(statuses).toContain(429);
+    setTextModelForTesting(null);
   });
 });

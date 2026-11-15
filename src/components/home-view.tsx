@@ -6,6 +6,7 @@ import { groupByDayPart, nextDose, type DayPart } from "@/lib/domain/day-part";
 import { fill } from "@/lib/i18n";
 import { api, formatDateTime } from "./api";
 import { useElderMode } from "./app-shell";
+import { Assistant } from "./assistant";
 import { DoseCard, type DoseCardProps } from "./dose-card";
 import { EmptyState, Skeleton } from "./feedback";
 import { Icon, type IconName } from "./icon";
@@ -34,7 +35,12 @@ export interface Appt {
   calendarUrl: string;
 }
 
-const PART_ICON: Record<DayPart, IconName> = { morning: "sunrise", afternoon: "today", evening: "sunset", night: "moon" };
+const PART_ICON: Record<DayPart, IconName> = {
+  morning: "sunrise",
+  afternoon: "today",
+  evening: "sunset",
+  night: "moon",
+};
 
 export function HomeView() {
   const { profile, member, can, t, lang, announce } = useSession();
@@ -224,6 +230,7 @@ export function HomeView() {
         <ReadAloudButton text={spoken} lang={lang} label={t("readAloud")} stopLabel={t("stopReading")} />
         {noEmail}
         {error ? <p role="alert">{error}</p> : null}
+        <Assistant onMark={mark} />
         {today}
       </section>
     );
@@ -237,6 +244,7 @@ export function HomeView() {
       {error ? <p role="alert">{error}</p> : null}
       <CircleSummary data={data} appts={appts} />
       {today}
+      <Assistant onMark={mark} />
 
       <h2>{t("nextAppointments")}</h2>
       {appts.length === 0 ? (
