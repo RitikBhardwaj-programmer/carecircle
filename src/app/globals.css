@@ -213,6 +213,13 @@ main:focus {
 .file-label {
   margin: 0.5rem 0;
 }
+/* The file input is visually hidden; show its focus on the label button instead. */
+.file-label:focus-within,
+input[type="file"]:focus-visible + .file-label,
+.file-label:has(+ input[type="file"]:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
 
 .field {
   display: flex;
@@ -425,6 +432,9 @@ input[type="checkbox"] {
   margin: 0.25rem 0 0;
 }
 
+.inline-form {
+  flex-basis: 100%;
+}
 .explain-panel {
   flex-basis: 100%;
   background: var(--secondary-bg);

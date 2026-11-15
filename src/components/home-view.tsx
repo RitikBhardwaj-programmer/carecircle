@@ -86,6 +86,12 @@ export function HomeView() {
   if (!data) return <p aria-busy="true">{t("loading")}</p>;
 
   const pending = data.doses.filter((d) => d.state !== "taken" && d.state !== "skipped");
+  const noEmail =
+    member.role === "elder" && !member.email ? (
+      <p className="notice">
+        {t("noEmailWarning")} <Link href="/circle">{t("navCircle")} →</Link>
+      </p>
+    ) : null;
   const spoken = pending.length
     ? pending.map((d) => `${d.time}: ${d.name}, ${d.dosage}. ${t(d.state)}.`).join(" ")
     : t("noDoses");
@@ -98,6 +104,7 @@ export function HomeView() {
           {t("todayTitle")} — {profile.elderName}
         </h1>
         <ReadAloudButton text={spoken} lang={lang} label={t("readAloud")} stopLabel={t("stopReading")} />
+        {noEmail}
         {error ? <p role="alert">{error}</p> : null}
         {data.doses.length === 0 ? <p className="big-text">{t("noDoses")}</p> : null}
         {data.doses.length > 0 && pending.length === 0 ? (
@@ -122,6 +129,7 @@ export function HomeView() {
         {t("todayTitle")} — {profile.elderName}
       </h1>
       <ReadAloudButton text={spoken} lang={lang} label={t("readAloud")} stopLabel={t("stopReading")} />
+      {noEmail}
       {error ? <p role="alert">{error}</p> : null}
       {data.doses.length === 0 ? (
         <p>

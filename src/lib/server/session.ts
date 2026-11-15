@@ -13,7 +13,7 @@ export async function getServerSession() {
     const member = publicMember(actor.member);
     return {
       profile: publicProfile(actor.profile),
-      member: { id: member.id, name: member.name, role: member.role, permission: member.permission },
+      member: { id: member.id, name: member.name, email: member.email, role: member.role, permission: member.permission },
       can: { write: can(actor.member, "write"), manageCircle: can(actor.member, "manageCircle") },
     };
   } catch {

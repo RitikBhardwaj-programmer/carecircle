@@ -39,6 +39,53 @@ function NewPasscode({ name, passcode, code, onClose }: { name: string; passcode
   );
 }
 
+/** Inline editor for a member's email; an empty value removes the address. */
+function EmailEditor({ member, onSaved }: { member: PublicMember; onSaved: () => void }) {
+  const { announce } = useSession();
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(member.email ?? "");
+  const [error, setError] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(undefined);
+    try {
+      await api(`/api/members/${member.id}`, { method: "PATCH", body: { email: value.trim() || null } });
+      announce(`Email for ${member.name} saved`);
+      setOpen(false);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof ApiError ? (err.fields.email ?? err.message) : (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>
+        {member.email ? "Change email" : "Add email"}
+        <span className="sr-only"> for {member.name}</span>
+      </button>
+    );
+  }
+  return (
+    <form onSubmit={save} noValidate className="inline-form" aria-label={`Email for ${member.name}`}>
+      <Field label={`Email for ${member.name}`} type="email" value={value} onChange={(e) => setValue(e.target.value)} error={error} maxLength={254} />
+      <div className="row">
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          Save email
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function SettingsForm({ initial, onSaved }: { initial: ProfileSettings; onSaved: () => void }) {
   const { announce } = useSession();
   const [s, setS] = useState(initial);
@@ -140,6 +187,7 @@ export function CircleView() {
         await api(`/api/members/${m.id}`, { method: "DELETE" });
         announce(`${m.name} no longer has access`);
       } else if (action === "reset") {
+        if (!window.confirm(`Create a new passcode for ${m.name}? The old one stops working and ${m.name} is logged out on other devices.`)) return;
         const res = await api<{ passcode: string }>(`/api/members/${m.id}/passcode`, { method: "POST" });
         setShown({ name: m.name, passcode: res.passcode });
       } else if (action === "toggle-permission") {
@@ -199,6 +247,7 @@ export function CircleView() {
                   <td>
                     {m.role !== "elder" ? (
                       <div className="row wrap">
+                        <EmailEditor member={m} onSaved={() => void load()} />
                         <button type="button" className="btn btn-ghost" onClick={() => void act(m, "toggle-permission")}>
                           {m.permission === "view" ? "Allow manage" : "Make view only"}
                           <span className="sr-only"> for {m.name}</span>
@@ -215,7 +264,18 @@ export function CircleView() {
                         </button>
                       </div>
                     ) : (
-                      "—"
+                      <div className="row wrap">
+                        <EmailEditor
+                          member={m}
+                          onSaved={() => {
+                            void load();
+                            router.refresh();
+                          }}
+                        />
+                        <button type="button" className="btn btn-ghost" onClick={() => void act(m, "reset")}>
+                          New passcode<span className="sr-only"> for {m.name}</span>
+                        </button>
+                      </div>
                     )}
                   </td>
                 ) : null}

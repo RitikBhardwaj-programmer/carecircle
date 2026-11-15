@@ -35,6 +35,7 @@ const en = {
   loading: "Loading…",
   retry: "Try again",
   notMedicalAdvice: "This is not medical advice. Ask your doctor or pharmacist.",
+  noEmailWarning: "No email address is set for you, so reminder emails cannot be sent. Add one in the care circle page.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -73,6 +74,7 @@ const hi: Partial<Record<MessageKey, string>> = {
   loading: "लोड हो रहा है…",
   retry: "फिर से कोशिश करें",
   notMedicalAdvice: "यह चिकित्सा सलाह नहीं है। अपने डॉक्टर या फार्मासिस्ट से पूछें।",
+  noEmailWarning: "आपका ईमेल पता नहीं जुड़ा है, इसलिए रिमाइंडर ईमेल नहीं भेजे जा सकते। देखभाल मंडली पेज में जोड़ें।",
 };
 
 export function translate(lang: Language, key: MessageKey): string {

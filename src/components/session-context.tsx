@@ -6,7 +6,7 @@ import { translate, type MessageKey } from "@/lib/i18n";
 
 export interface SessionInfo {
   profile: { id: string; code: string; elderName: string; timezone: string; language: Language; settings: ProfileSettings };
-  member: { id: string; name: string; role: Role; permission: "view" | "manage" };
+  member: { id: string; name: string; email: string | null; role: Role; permission: "view" | "manage" };
   can: { write: boolean; manageCircle: boolean };
 }
 
