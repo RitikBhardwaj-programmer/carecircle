@@ -82,6 +82,12 @@ const en = {
   askOpenForm: "I filled in the form for you. Check it and press Save.",
   askOpened: "Opened {page}",
   askFailed: "Sorry, I could not answer just now. Please try again; the buttons on this page still work.",
+  language: "Language",
+  theme: "Theme",
+  themeSystem: "System",
+  themeLight: "Light",
+  themeDark: "Dark",
+  shownAbove: "shown above as the next dose",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -166,6 +172,12 @@ const hi: Partial<Record<MessageKey, string>> = {
   askOpenForm: "मैंने फ़ॉर्म भर दिया है। जाँचें और सेव दबाएँ।",
   askOpened: "{page} खोला गया",
   askFailed: "माफ़ कीजिए, अभी जवाब नहीं दे सका। कृपया फिर से कोशिश करें; इस पेज के बटन काम करते हैं।",
+  language: "भाषा",
+  theme: "रंग",
+  themeSystem: "फ़ोन जैसा",
+  themeLight: "हल्का",
+  themeDark: "गहरा",
+  shownAbove: "ऊपर अगली दवा में दिखाई गई है",
 };
 
 export function translate(lang: Language, key: MessageKey): string {

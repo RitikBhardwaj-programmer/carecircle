@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme-boot";
 
 export const metadata: Metadata = {
   title: "CareCircle — Elderly Care & Medication Management",
@@ -11,7 +12,11 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    // data-theme is set by the boot script before React hydrates, so React must not warn about it.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body>
         <a className="skip-link" href="#main">
           Skip to main content

@@ -3,7 +3,8 @@ import { join } from "node:path";
 
 /**
  * Reads the colour tokens from globals.css and checks WCAG contrast:
- * 7:1 for text pairs (1.4.6, AAA) and 3:1 for control borders and focus (1.4.11), in both modes.
+ * 7:1 for text pairs (1.4.6, AAA) and 3:1 for control borders and focus (1.4.11),
+ * in light and dark, each with and without Elder Mode.
  */
 const css = readFileSync(join(__dirname, "..", "src", "app", "globals.css"), "utf8");
 
@@ -31,6 +32,8 @@ export function contrast(a: string, b: string): number {
 
 const base = block(":root {");
 const elder = { ...base, ...block("html.elder-mode,") };
+const dark = { ...base, ...block('html[data-theme="dark"] {') };
+const darkElder = { ...elder, ...dark, ...block('html[data-theme="dark"].elder-mode,') };
 
 const TEXT_PAIRS: Array<[string, string]> = [
   ["fg", "bg"],
@@ -63,6 +66,8 @@ const CONTROL_PAIRS: Array<[string, string]> = [
 describe.each([
   ["normal", base],
   ["Elder Mode", elder],
+  ["dark", dark],
+  ["dark Elder Mode", darkElder],
 ])("colour tokens in %s", (_name, tokens) => {
   it.each(TEXT_PAIRS)("text %s on %s reaches 7:1", (fg, bg) => {
     expect(tokens[fg], fg).toBeDefined();

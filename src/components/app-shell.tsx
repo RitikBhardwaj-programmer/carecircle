@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import { Icon, LogoMark, type IconName } from "./icon";
 import { useSession } from "./session-context";
+import { ThemeSelect } from "./theme";
 import type { MessageKey } from "@/lib/i18n";
 
 interface NavItem {
@@ -28,9 +29,9 @@ const NAV: NavItem[] = [
 
 const ELDER_MODE_KEY = "cc-elder-mode";
 
-/** Reads the Elder Mode preference; the elder gets it on by default. */
-export function useElderMode(defaultOn: boolean): [boolean, (v: boolean) => void] {
-  const [on, setOn] = useState(defaultOn);
+/** Reads the Elder Mode preference. It is off by default for everyone; the saved choice wins. */
+export function useElderMode(): [boolean, (v: boolean) => void] {
+  const [on, setOn] = useState(false);
   useEffect(() => {
     const saved = window.localStorage.getItem(ELDER_MODE_KEY);
     // Reading browser storage must happen after hydration, so this runs in an effect.
@@ -54,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { profile, member, t, lang, setLang, toast, dismissToast, holdToast } = useSession();
   const pathname = usePathname();
   const router = useRouter();
-  const [elderMode, setElderMode] = useElderMode(member.role === "elder");
+  const [elderMode, setElderMode] = useElderMode();
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -95,20 +96,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               />
               {t("elderMode")}
             </label>
-            <label className="sr-only" htmlFor="lang-select">
-              Language
-            </label>
-            <select
-              id="lang-select"
-              value={lang}
-              onChange={(e) => setLang(e.target.value === "hi" ? "hi" : "en")}
-            >
-              <option value="en">English</option>
-              <option value="hi">हिन्दी</option>
-            </select>
-            <button type="button" className="btn btn-ghost" onClick={logout}>
+            <span className="select-group">
+              <label className="select-label" htmlFor="lang-select">
+                {t("language")}
+              </label>
+              <select
+                id="lang-select"
+                value={lang}
+                onChange={(e) => setLang(e.target.value === "hi" ? "hi" : "en")}
+              >
+                <option value="en">English</option>
+                <option value="hi">हिन्दी</option>
+              </select>
+            </span>
+            <ThemeSelect
+              labels={{
+                theme: t("theme"),
+                system: t("themeSystem"),
+                light: t("themeLight"),
+                dark: t("themeDark"),
+              }}
+            />
+            <button type="button" className="btn btn-ghost logout-btn" onClick={logout}>
               <Icon name="logout" />
-              {t("logout")}
+              <span className="logout-label">{t("logout")}</span>
             </button>
           </div>
         </div>
@@ -162,7 +173,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ) : null}
               <button
                 type="button"
-                className="btn btn-small toast-action"
+                className="btn toast-action"
                 onClick={dismissToast}
                 aria-label={t("close")}
               >

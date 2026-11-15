@@ -83,6 +83,51 @@ html.elder-mode,
   font-size: 22px;
 }
 
+/*
+ * Dark theme: the same tokens with dark values. data-theme is set on <html> before first paint
+ * (see src/lib/theme-boot.ts). Same contrast rules as light: 7:1 text, 3:1 controls.
+ */
+html[data-theme="dark"] {
+  --bg: #0f141b;
+  --surface: #18202b;
+  --fg: #f3f5f8;
+  --muted: #c3cbd6;
+  --border: #364152;
+  --control-border: #8b97a8;
+  --primary: #9cc3ff;
+  --primary-hover: #b8d4ff;
+  --primary-fg: #0b1a33;
+  --secondary-bg: #1f2d44;
+  --ok: #7ee2a0;
+  --ok-bg: #12301f;
+  --warn: #ffc56b;
+  --warn-bg: #33240c;
+  --danger: #ffa3a3;
+  --danger-bg: #3a1515;
+  --info: #9cc3ff;
+  --info-bg: #1a2a42;
+  --focus: #ffb454;
+  --toast-bg: #f3f5f8;
+  --toast-fg: #111827;
+  --toast-action: #0b3d91;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
+  color-scheme: dark;
+}
+
+/* Dark Elder Mode (and the one-tap dose page in dark): brighter text, stronger borders. */
+html[data-theme="dark"].elder-mode,
+html[data-theme="dark"] .elder-mode-page {
+  --fg: #ffffff;
+  --muted: #e2e8f0;
+  --border: #8b97a8;
+  --control-border: #c3cbd6;
+  --primary: #b8d4ff;
+  --primary-hover: #d0e2ff;
+  --danger: #ffb8b8;
+  --ok: #9ef0b8;
+  --warn: #ffd591;
+}
+
 *,
 *::before,
 *::after {
@@ -205,6 +250,24 @@ a {
   width: 2rem;
   height: 2rem;
   flex: none;
+}
+.select-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.select-label {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.dose-pointer {
+  margin: var(--space-2) 0;
+  font-weight: 600;
+}
+.dose-pointer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
 }
 .brand-sub {
   display: block;
@@ -343,6 +406,8 @@ main:focus {
   gap: var(--space-2);
 }
 .toast-action {
+  min-height: 48px;
+  min-width: 48px;
   background: transparent;
   color: var(--toast-action);
   border: 2px solid var(--toast-action);
@@ -912,7 +977,8 @@ input[type="checkbox"] {
   font-weight: 700;
 }
 .elder-home h1 {
-  font-size: var(--text-3xl);
+  font-size: var(--text-2xl);
+  margin: var(--space-3) 0;
 }
 
 /* Circle dashboard summary */
@@ -1239,11 +1305,41 @@ html.elder-mode .dose-card {
   h1 {
     font-size: var(--text-2xl);
   }
+  /* Compact header on phones, so the main action fits in the first screen. */
+  .topbar-inner {
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+    gap: var(--space-1) var(--space-2);
+  }
+  .brand-sub,
+  .select-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
   .toolbar {
     width: 100%;
+    gap: var(--space-1) var(--space-2);
   }
-  .toolbar .btn-ghost {
+  .toolbar select {
+    padding-left: var(--space-2);
+    padding-right: var(--space-1);
+    max-width: 8.5rem;
+  }
+  .logout-btn {
     margin-left: auto;
+    padding: 0 var(--space-2);
+  }
+  .logout-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
   .card {
     padding: var(--space-4);

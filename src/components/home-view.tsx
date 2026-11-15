@@ -44,7 +44,7 @@ const PART_ICON: Record<DayPart, IconName> = {
 
 export function HomeView() {
   const { profile, member, can, t, lang, announce } = useSession();
-  const [elderMode] = useElderMode(member.role === "elder");
+  const [elderMode] = useElderMode();
   const [data, setData] = useState<DosesResponse | null>(null);
   const [appts, setAppts] = useState<Appt[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -149,7 +149,6 @@ export function HomeView() {
   const pending = data.doses.filter((d) => d.state !== "taken" && d.state !== "skipped");
   const takenCount = data.doses.filter((d) => d.state === "taken").length;
   const next = nextDose(data.doses);
-  const rest = data.doses.filter((d) => d.id !== next?.id);
   const noEmail =
     member.role === "elder" && !member.email ? (
       <p className="notice">
@@ -176,15 +175,27 @@ export function HomeView() {
     />
   );
 
+  const empty =
+    data.doses.length === 0 ? (
+      <EmptyState
+        icon="pill"
+        text={t("noDoses")}
+        action={can.write ? { label: t("addFirstMedicine"), href: "/medications" } : undefined}
+      />
+    ) : null;
+  const nextCard = next ? (
+    <section className="card next-dose" aria-labelledby="next-dose-title">
+      <h2 id="next-dose-title" className="eyebrow">
+        <Icon name="clock" />
+        {t("nextDose")}
+      </h2>
+      {card(next)}
+    </section>
+  ) : null;
+
   const today = (
     <>
-      {data.doses.length === 0 ? (
-        <EmptyState
-          icon="pill"
-          text={t("noDoses")}
-          action={can.write ? { label: t("addFirstMedicine"), href: "/medications" } : undefined}
-        />
-      ) : (
+      {data.doses.length === 0 ? null : (
         <>
           <div className="card progress-card">
             <p className="progress-text" id="progress-label">
@@ -206,15 +217,6 @@ export function HomeView() {
               <Icon name="check" /> {t("allDone")}
             </p>
           ) : null}
-          {next ? (
-            <section className="card next-dose" aria-labelledby="next-dose-title">
-              <h2 id="next-dose-title" className="eyebrow">
-                <Icon name="clock" />
-                {t("nextDose")}
-              </h2>
-              {card(next)}
-            </section>
-          ) : null}
         </>
       )}
     </>
@@ -222,7 +224,7 @@ export function HomeView() {
 
   const groups = (
     <>
-      {groupByDayPart(rest).map((g) => (
+      {groupByDayPart(data.doses).map((g) => (
         <section key={g.part} className="daypart" aria-labelledby={`part-${g.part}`}>
           <h2 id={`part-${g.part}`}>
             <Icon name={PART_ICON[g.part]} />
@@ -230,9 +232,19 @@ export function HomeView() {
             <span className="daypart-count">({g.doses.length})</span>
           </h2>
           <ul className="dose-list">
-            {g.doses.map((d) => (
-              <li key={d.id}>{card(d)}</li>
-            ))}
+            {g.doses.map((d) =>
+              d.id === next?.id ? (
+                <li key={d.id}>
+                  <p className="dose-pointer">
+                    <a href="#next-dose-title">
+                      {d.time} · {d.name} — {t("shownAbove")}
+                    </a>
+                  </p>
+                </li>
+              ) : (
+                <li key={d.id}>{card(d)}</li>
+              ),
+            )}
           </ul>
         </section>
       ))}
@@ -243,10 +255,12 @@ export function HomeView() {
     // Elder Mode: one large card per dose, one big button, read-aloud.
     return (
       <section aria-labelledby="home-title" className="elder-home">
-        {title}
-        <ReadAloudButton text={spoken} lang={lang} label={t("readAloud")} stopLabel={t("stopReading")} />
+        <h1 id="home-title">{t("todayTitle")}</h1>
         {error ? <p role="alert">{error}</p> : null}
+        {nextCard}
+        {empty}
         {today}
+        <ReadAloudButton text={spoken} lang={lang} label={t("readAloud")} stopLabel={t("stopReading")} />
         {noEmail}
         <Assistant onMark={mark} />
         {groups}
@@ -257,10 +271,12 @@ export function HomeView() {
   return (
     <section aria-labelledby="home-title">
       {title}
+      {error ? <p role="alert">{error}</p> : null}
+      {nextCard}
+      {empty}
+      {today}
       <ReadAloudButton text={spoken} lang={lang} label={t("readAloud")} stopLabel={t("stopReading")} />
       {noEmail}
-      {error ? <p role="alert">{error}</p> : null}
-      {today}
       <CircleSummary data={data} appts={appts} part="cards" />
       {groups}
       <Assistant onMark={mark} />
