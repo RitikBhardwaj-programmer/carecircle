@@ -146,3 +146,23 @@ describe("DoseCard Undo (Change button)", () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
+
+describe("MedicationForm time chips (Stage 4)", () => {
+  it("groups the form in three steps and a time chip adds or removes that time", async () => {
+    const onSubmit = vi.fn();
+    const { container } = render(
+      <MedicationForm initial={emptyMedication("2026-11-15")} title="Add medication" submitLabel="Save" onSubmit={onSubmit} />,
+    );
+    expect(screen.getByRole("group", { name: /What is the medicine\?/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /When is it taken\?/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /For how long\?/ })).toBeInTheDocument();
+    const morning = screen.getByRole("button", { name: "Morning 08:00" });
+    expect(morning).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Night 21:00" }));
+    fireEvent.click(morning); // removes 08:00, since another time is left
+    fireEvent.change(screen.getByLabelText("Medicine name"), { target: { value: "Atorvastatin" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ times: ["21:00"] }));
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});

@@ -1,16 +1,18 @@
 "use client";
 
 import { useId } from "react";
+import { Icon } from "./icon";
 
-interface FieldProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "id"> {
+interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
   hint?: string;
 }
 
 /** Labelled input; hint and error are linked with aria-describedby. */
-export function Field({ label, error, hint, ...input }: FieldProps) {
-  const id = useId();
+export function Field({ label, error, hint, id: givenId, ...input }: FieldProps) {
+  const autoId = useId();
+  const id = givenId ?? autoId;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
@@ -25,7 +27,7 @@ export function Field({ label, error, hint, ...input }: FieldProps) {
       <input id={id} aria-invalid={error ? true : undefined} aria-describedby={describedBy} {...input} />
       {error ? (
         <p id={errorId} className="error">
-          <span aria-hidden="true">⚠ </span>
+          <Icon name="alert" />
           {error}
         </p>
       ) : null}

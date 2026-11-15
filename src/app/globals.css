@@ -487,6 +487,11 @@ input[type="checkbox"] {
   font-weight: 600;
   margin: var(--space-1) 0;
 }
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
 
 /* Error summary (GOV.UK pattern) */
 .error-summary {
