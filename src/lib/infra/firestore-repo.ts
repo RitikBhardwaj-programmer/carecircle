@@ -116,6 +116,17 @@ export class FirestoreRepo implements Repository {
     await this.sub(profileId, "doseLogs").doc(log.id).set(log);
   }
 
+  async deleteDoseLog(profileId: string, doseId: string): Promise<DoseLog | null> {
+    const ref = this.sub(profileId, "doseLogs").doc(doseId);
+    // Read and delete in one transaction, so two Undo presses report one removal.
+    return this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return null;
+      tx.delete(ref);
+      return snap.data() as DoseLog;
+    });
+  }
+
   async listAppointments(profileId: string): Promise<Appointment[]> {
     const q = await this.sub(profileId, "appointments").get();
     return q.docs.map((d) => d.data() as Appointment);

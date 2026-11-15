@@ -126,3 +126,23 @@ describe("MedicationForm (R3)", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Please check the highlighted fields.");
   });
 });
+
+describe("DoseCard Undo (Change button)", () => {
+  it("shows when the dose was marked and a Change button that reopens it", async () => {
+    const onUndo = vi.fn();
+    const { container } = render(
+      <DoseCard
+        dose={{ ...dose, state: "taken", loggedBy: "Ravi", loggedAt: "2026-11-15T02:35:00.000Z" }}
+        canWrite
+        timeZone="Asia/Kolkata"
+        t={t}
+        onMark={vi.fn()}
+        onUndo={onUndo}
+      />,
+    );
+    expect(screen.getByText(/Taken · by Ravi · 08:05/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Change" }));
+    expect(onUndo).toHaveBeenCalledWith(dose.id);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});

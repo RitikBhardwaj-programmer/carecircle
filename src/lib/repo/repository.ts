@@ -34,6 +34,8 @@ export interface Repository {
   listDoseLogs(profileId: string, fromDate: string, toDate: string): Promise<DoseLog[]>;
   /** Upsert by dose id: writing the same dose twice keeps one log. */
   putDoseLog(profileId: string, log: DoseLog): Promise<void>;
+  /** Removes a dose log (Undo). Returns the removed log, or null when there was none. */
+  deleteDoseLog(profileId: string, doseId: string): Promise<DoseLog | null>;
 
   listAppointments(profileId: string): Promise<Appointment[]>;
   getAppointment(profileId: string, appointmentId: string): Promise<Appointment | null>;

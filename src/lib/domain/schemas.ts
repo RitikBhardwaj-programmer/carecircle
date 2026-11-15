@@ -101,6 +101,8 @@ export const doseLogSchema = z.object({
   status: z.enum(["taken", "skipped"]),
 });
 
+export const doseUndoSchema = z.object({ doseId: z.string().max(100) });
+
 export const appointmentSchema = z.object({
   doctor: trimmed(80),
   purpose: trimmed(120),

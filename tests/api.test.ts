@@ -3,7 +3,7 @@ import { POST as login } from "@/app/api/auth/login/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
 import { POST as cron } from "@/app/api/cron/reminders/route";
 import { POST as doseLink } from "@/app/api/dose-link/route";
-import { GET as getDoses, POST as postDose } from "@/app/api/doses/route";
+import { DELETE as delDose, GET as getDoses, POST as postDose } from "@/app/api/doses/route";
 import { GET as getMe } from "@/app/api/me/route";
 import { DELETE as revoke } from "@/app/api/members/[id]/route";
 import { GET as listMembers, POST as addMember } from "@/app/api/members/route";
@@ -299,5 +299,41 @@ describe("hardening from review", () => {
     });
     expect((await scan(badReq)).status).toBe(400);
     setTextModelForTesting(null);
+  });
+});
+
+describe("DELETE /api/doses (Undo)", () => {
+  it("undoes a logged dose, is a no-op for an unlogged one, and refuses a view-only member", async () => {
+    const p = await newProfile();
+    const { medication } = await (await createMed(req("POST", "/api/medications", { cookie: p.cookie, body: medInput }))).json();
+    const doseId = `${medication.id}_2026-11-15_0800`;
+    expect((await postDose(req("POST", "/api/doses", { cookie: p.cookie, body: { doseId, status: "taken" } }))).status).toBe(200);
+    const logged = await (await getDoses(req("GET", "/api/doses", { cookie: p.cookie }))).json();
+    expect(logged.doses[0]).toMatchObject({ id: doseId, state: "taken", loggedBy: "Asha Devi" });
+    expect(logged.doses[0].loggedAt).toBe("2026-11-15T04:30:00.000Z");
+
+    const undo = await delDose(req("DELETE", "/api/doses", { cookie: p.cookie, body: { doseId } }));
+    expect(undo.status).toBe(200);
+    expect(await undo.json()).toEqual({ undone: true });
+    const after = await (await getDoses(req("GET", "/api/doses", { cookie: p.cookie }))).json();
+    expect(after.doses[0]).toMatchObject({ id: doseId, loggedBy: null, loggedAt: null });
+    expect(after.doses[0].state).not.toBe("taken");
+
+    // Unknown or already-undone dose: no-op, no error.
+    expect(await (await delDose(req("DELETE", "/api/doses", { cookie: p.cookie, body: { doseId } }))).json()).toEqual({ undone: false });
+    expect((await delDose(req("DELETE", "/api/doses", { cookie: p.cookie, body: { doseId: "nonsense" } }))).status).toBe(400);
+
+    const added = await (
+      await addMember(req("POST", "/api/members", { cookie: p.cookie, body: { name: "Ravi", role: "family", permission: "view" } }))
+    ).json();
+    const ravi = await login(
+      req("POST", "/api/auth/login", { body: { code: p.code, passcode: added.passcode }, headers: { "x-forwarded-for": `10.2.0.${ipCounter}` } }),
+    );
+    await postDose(req("POST", "/api/doses", { cookie: p.cookie, body: { doseId, status: "taken" } }));
+    expect((await delDose(req("DELETE", "/api/doses", { cookie: cookieOf(ravi), body: { doseId } }))).status).toBe(403);
+    expect((await delDose(req("DELETE", "/api/doses", { body: { doseId } }))).status).toBe(401);
+
+    const log = await (await activity(req("GET", "/api/activity", { cookie: p.cookie }))).json();
+    expect(log.activity.map((a: { action: string }) => a.action)).toContain("undid dose taken");
   });
 });

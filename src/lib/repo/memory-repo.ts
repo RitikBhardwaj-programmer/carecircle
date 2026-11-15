@@ -112,6 +112,14 @@ export class MemoryRepo implements Repository {
     this.bucket(profileId).doseLogs.set(log.id, clone(log));
   }
 
+  async deleteDoseLog(profileId: string, doseId: string): Promise<DoseLog | null> {
+    const logs = this.bucket(profileId).doseLogs;
+    const log = logs.get(doseId);
+    if (!log) return null;
+    logs.delete(doseId);
+    return clone(log);
+  }
+
   async listAppointments(profileId: string): Promise<Appointment[]> {
     return [...this.bucket(profileId).appointments.values()].map(clone);
   }

@@ -73,6 +73,8 @@ export interface TodayDose {
   at: string;
   state: DoseState;
   loggedBy: string | null;
+  /** When the dose was marked (ISO), or null. */
+  loggedAt: string | null;
 }
 
 /** Today's doses (local to the profile time zone) with their status, in time order. */
@@ -99,6 +101,7 @@ export async function todayDoses(deps: Deps, actor: Actor): Promise<{ date: stri
           at: dose.at,
           state: doseState(dose, log, now, actor.profile.settings),
           loggedBy: log?.byName ?? null,
+          loggedAt: log?.at ?? null,
         };
       }),
     )
@@ -142,6 +145,25 @@ export async function logDose(
   await deps.repo.putDoseLog(actor.profile.id, log);
   await recordActivity(deps, actor, `marked dose ${status}${via === "email" ? " (email link)" : ""}`, `${med.name} ${dose.time}`);
   return log;
+}
+
+/**
+ * Undo: removes the log of a dose so it is open again. Same write permission and
+ * 7-day window as logging. Removing a dose that has no log is a no-op (returns false).
+ */
+export async function undoDose(deps: Deps, actor: Actor, doseIdValue: string): Promise<boolean> {
+  authorize(actor, "write");
+  const parts = parseDoseId(doseIdValue);
+  if (!parts) throw new AppError("BAD_REQUEST", "Invalid dose.");
+  const today = localParts(deps.now(), actor.profile.timezone).date;
+  if (parts.date > today || parts.date < addDays(today, -7)) {
+    throw new AppError("BAD_REQUEST", "Doses can be changed for the last 7 days only.");
+  }
+  const removed = await deps.repo.deleteDoseLog(actor.profile.id, doseIdValue);
+  if (!removed) return false;
+  const med = await deps.repo.getMedication(actor.profile.id, removed.medicationId);
+  await recordActivity(deps, actor, `undid dose ${removed.status}`, `${med?.name ?? "medicine"} ${removed.time}`);
+  return true;
 }
 
 export interface MedicationAdherence {
