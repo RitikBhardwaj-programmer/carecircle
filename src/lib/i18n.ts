@@ -81,7 +81,7 @@ const en = {
   askNothingChanged: "Nothing was changed.",
   askOpenForm: "I filled in the form for you. Check it and press Save.",
   askOpened: "Opened {page}",
-  askFailed: "Sorry, I could not answer just now. You can still use the buttons on this page.",
+  askFailed: "Sorry, I could not answer just now. Please try again; the buttons on this page still work.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -165,7 +165,7 @@ const hi: Partial<Record<MessageKey, string>> = {
   askNothingChanged: "कुछ नहीं बदला गया।",
   askOpenForm: "मैंने फ़ॉर्म भर दिया है। जाँचें और सेव दबाएँ।",
   askOpened: "{page} खोला गया",
-  askFailed: "माफ़ कीजिए, अभी जवाब नहीं दे सका। आप इस पेज के बटन इस्तेमाल कर सकते हैं।",
+  askFailed: "माफ़ कीजिए, अभी जवाब नहीं दे सका। कृपया फिर से कोशिश करें; इस पेज के बटन काम करते हैं।",
 };
 
 export function translate(lang: Language, key: MessageKey): string {

@@ -24,8 +24,8 @@ export interface AssistDose {
 export type AssistResult = AssistIntent & { dose?: AssistDose; fallback?: true };
 
 const FALLBACK: Record<Language, string> = {
-  en: "Sorry, I could not answer just now. You can still use the buttons on this page.",
-  hi: "माफ़ कीजिए, अभी जवाब नहीं दे सका। आप इस पेज के बटन इस्तेमाल कर सकते हैं।",
+  en: "Sorry, I could not answer just now. Please try again; the buttons on this page still work.",
+  hi: "माफ़ कीजिए, अभी जवाब नहीं दे सका। कृपया फिर से कोशिश करें; इस पेज के बटन काम करते हैं।",
 };
 const VIEW_ONLY: Record<Language, string> = {
   en: "You can view this profile but not change it. Please ask the elder or a family member who can manage medicines.",
