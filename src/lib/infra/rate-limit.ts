@@ -33,5 +33,7 @@ export class RateLimiter {
 }
 
 export const loginLimiter = new RateLimiter(10, 5);
+/** Profile creation is stricter: each profile can send reminder emails. */
+export const createProfileLimiter = new RateLimiter(3, 0.2);
 export const aiLimiter = new RateLimiter(8, 4);
 export const doseLinkLimiter = new RateLimiter(20, 10);

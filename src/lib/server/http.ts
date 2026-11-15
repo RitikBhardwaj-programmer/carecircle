@@ -65,12 +65,22 @@ export function parseWith<T>(schema: z.ZodType<T>, data: unknown): T {
   return result.data;
 }
 
+/**
+ * Client address for rate limiting. Google's front end appends the address it saw to
+ * X-Forwarded-For, so the last entry is the one a client cannot forge (earlier entries can be).
+ */
 export function clientIp(req: NextRequest): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const hops = req.headers.get("x-forwarded-for")?.split(",").map((h) => h.trim()).filter(Boolean) ?? [];
+  return hops.at(-1) ?? "local";
 }
 
 export function rateLimit(limiter: RateLimiter, req: NextRequest): void {
-  if (!limiter.take(clientIp(req))) throw new AppError("RATE_LIMITED", "Too many requests. Please wait a minute.");
+  if (!limiter.take(clientIp(req))) {
+    // Hop count only (no addresses), to confirm the proxy chain in production logs.
+    const hops = req.headers.get("x-forwarded-for")?.split(",").length ?? 0;
+    logger.warn("request.rate_limited", { path: req.nextUrl.pathname, xffHops: hops });
+    throw new AppError("RATE_LIMITED", "Too many requests. Please wait a minute.");
+  }
 }
 
 export async function requireActor(req: NextRequest, deps: Deps): Promise<Actor> {
