@@ -1,0 +1,28 @@
+:root {
+  --bg: #ffffff;
+  --fg: #111827;
+  --muted: #374151;
+  --primary: #0b3d91;
+  --focus: #b45309;
+  --font-size: 18px;
+}
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  font-size: var(--font-size);
+  background: var(--bg);
+  color: var(--fg);
+}
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.skip-link {
+  position: absolute;
+  left: -999px;
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+}
