@@ -4,16 +4,26 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "./api";
-import { LogoMark } from "./icon";
+import { Icon, LogoMark, type IconName } from "./icon";
 import { useSession } from "./session-context";
 import type { MessageKey } from "@/lib/i18n";
 
-const NAV: Array<{ href: string; key: MessageKey }> = [
-  { href: "/home", key: "navHome" },
-  { href: "/medications", key: "navMedications" },
-  { href: "/appointments", key: "navAppointments" },
-  { href: "/circle", key: "navCircle" },
-  { href: "/activity", key: "navActivity" },
+interface NavItem {
+  href: string;
+  key: MessageKey;
+  short: MessageKey;
+  icon: IconName;
+  /** Shown in the top bar on wide screens only; on phones it is linked from the Circle page. */
+  wideOnly?: boolean;
+}
+
+const NAV: NavItem[] = [
+  { href: "/home", key: "navHome", short: "navHome", icon: "today" },
+  { href: "/medications", key: "navMedications", short: "tabMedications", icon: "pill" },
+  { href: "/appointments", key: "navAppointments", short: "tabAppointments", icon: "calendar" },
+  { href: "/circle", key: "navCircle", short: "tabCircle", icon: "users" },
+  { href: "/activity", key: "navActivity", short: "navActivity", icon: "activity", wideOnly: true },
+  { href: "/home#ask", key: "navAsk", short: "navAsk", icon: "ask" },
 ];
 
 const ELDER_MODE_KEY = "cc-elder-mode";
@@ -41,7 +51,7 @@ export function useElderMode(defaultOn: boolean): [boolean, (v: boolean) => void
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { profile, member, t, lang, setLang, status } = useSession();
+  const { profile, member, t, lang, setLang, toast, dismissToast } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [elderMode, setElderMode] = useElderMode(member.role === "elder");
@@ -63,7 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div lang={lang} className="shell">
+    <div lang={lang} className="shell has-tabbar">
       <header className="topbar">
         <div className="container topbar-inner">
           <p className="brand">
@@ -77,7 +87,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </p>
           <div className="toolbar">
             <label className="switch">
-              <input type="checkbox" checked={elderMode} onChange={(e) => setElderMode(e.target.checked)} />
+              <input
+                type="checkbox"
+                role="switch"
+                checked={elderMode}
+                onChange={(e) => setElderMode(e.target.checked)}
+              />
               {t("elderMode")}
             </label>
             <label className="sr-only" htmlFor="lang-select">
@@ -92,27 +107,62 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <option value="hi">हिन्दी</option>
             </select>
             <button type="button" className="btn btn-ghost" onClick={logout}>
+              <Icon name="logout" />
               {t("logout")}
             </button>
           </div>
         </div>
-        <nav aria-label="Main" className="container">
-          <ul className="nav">
-            {NAV.map((n) => (
-              <li key={n.href}>
-                <Link href={n.href} aria-current={pathname === n.href ? "page" : undefined}>
-                  {t(n.key)}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
       </header>
+      <nav aria-label="Main" className="mainnav">
+        <ul className="nav">
+          {NAV.map((n) => (
+            <li key={n.href} className={n.wideOnly ? "nav-wide-only" : undefined}>
+              <Link href={n.href} aria-current={pathname === n.href ? "page" : undefined}>
+                <Icon name={n.icon} />
+                <span className="nav-label-long">{t(n.key)}</span>
+                <span className="nav-label-short" aria-hidden="true">
+                  {t(n.short)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
       <main id="main" className="container" tabIndex={-1}>
         {children}
       </main>
-      <div role="status" aria-live="polite" className="sr-only">
-        {status}
+      {/* The only live region: screen readers hear each message once, sighted users see it as a toast. */}
+      <div role="status" aria-live="polite" className="toast-region">
+        {toast ? (
+          <div className="toast" key={toast.id}>
+            <p>
+              <Icon name="info" />
+              {toast.message}
+            </p>
+            <span className="row">
+              {toast.action ? (
+                <button
+                  type="button"
+                  className="btn btn-small toast-action"
+                  onClick={() => {
+                    toast.action?.onAction();
+                    dismissToast();
+                  }}
+                >
+                  {toast.action.label}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn-small toast-action"
+                onClick={dismissToast}
+                aria-label={t("close")}
+              >
+                <Icon name="close" />
+              </button>
+            </span>
+          </div>
+        ) : null}
       </div>
       <footer className="container footer">
         <p>

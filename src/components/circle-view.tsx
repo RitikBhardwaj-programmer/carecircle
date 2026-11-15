@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { ProfileSettings } from "@/lib/domain/types";
 import { api, ApiError } from "./api";
 import { Field, FormError } from "./field";
+import { Icon } from "./icon";
 import { useSession } from "./session-context";
 
 interface PublicMember {
@@ -208,7 +210,13 @@ export function CircleView() {
 
   return (
     <section aria-labelledby="circle-title">
-      <h1 id="circle-title">{t("navCircle")}</h1>
+      <div className="page-head">
+        <h1 id="circle-title">{t("navCircle")}</h1>
+        <Link href="/activity" className="btn btn-ghost">
+          <Icon name="activity" />
+          {t("seeActivity")}
+        </Link>
+      </div>
       <p className="muted">
         {profile.elderName} decides who is in the circle, what they can do, and when they are told about missed doses.
       </p>
@@ -223,7 +231,7 @@ export function CircleView() {
       {members === null ? (
         <p aria-busy="true">{t("loading")}</p>
       ) : (
-        <table className="table">
+        <table className="table table-stack">
           <caption>Members with access</caption>
           <thead>
             <tr>
@@ -240,11 +248,11 @@ export function CircleView() {
                 <th scope="row">
                   {m.name} {m.id === me.id ? <span className="badge">You</span> : null}
                 </th>
-                <td>{m.role}</td>
-                <td>{m.role === "elder" ? "full (owner)" : m.permission === "manage" ? "view and manage" : "view only"}</td>
-                <td>{m.email ? (m.notify ? "on" : "off") : "no email"}</td>
+                <td data-label="Role">{m.role}</td>
+                <td data-label="Access">{m.role === "elder" ? "full (owner)" : m.permission === "manage" ? "view and manage" : "view only"}</td>
+                <td data-label="Email alerts">{m.email ? (m.notify ? "on" : "off") : "no email"}</td>
                 {can.manageCircle ? (
-                  <td>
+                  <td data-label="Actions">
                     {m.role !== "elder" ? (
                       <div className="row wrap">
                         <EmailEditor member={m} onSaved={() => void load()} />

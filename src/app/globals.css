@@ -1169,9 +1169,17 @@ html.elder-mode .dose-card {
     max-width: 100%;
     overflow-wrap: anywhere;
   }
-  .nav-label-long,
   .nav-wide-only {
     display: none;
+  }
+  /* The full name stays the link's accessible name; the short label is what fits on screen. */
+  .nav-label-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
   .has-tabbar {
     padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
