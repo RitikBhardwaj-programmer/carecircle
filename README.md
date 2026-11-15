@@ -29,7 +29,7 @@ phone; nobody else knows when a dose is missed, and the elder loses control when
 | Proactive email reminders: upcoming doses | Email 15 min before each dose. |
 | … missed medications | Email to the elder 30 min after a missed dose; escalation to the care circle at 60 min — **only if the elder allows it**. |
 | … medical appointments | Emails 24 h and 2 h before. |
-| Beyond a basic reminder app | **One-tap "Mark as taken" link** in emails (no login), **Elder Mode** (large text, high contrast, one big button, read-aloud, Hindi), **Gemini prescription scan** (photo → draft schedule, saved only after a human confirms), **Gemini medicine explainer** in English and Hindi, **activity log** of who changed what. |
+| Beyond a basic reminder app | **One-tap "Mark as taken" link** in emails (no login), **Elder Mode** (large text, high contrast, one big button, read-aloud, Hindi for the daily screens), **Gemini prescription scan** (photo → draft schedule, saved only after a human confirms), **Gemini medicine explainer** in English and Hindi, **activity log** of who changed what. |
 | Elder at the centre | Only the elder adds/revokes members, changes permissions and decides on escalation. |
 
 ## Architecture
@@ -86,10 +86,10 @@ Application Default Credentials are used everywhere on Cloud Run — there is no
 | Criterion | Evidence |
 |---|---|
 | **Code quality** | Layered design (domain / services / repo / infra / routes); TypeScript `strict` + `noUncheckedIndexedAccess`; ESLint (`next/core-web-vitals`, `typescript`, full `jsx-a11y` recommended) with zero warnings; Prettier; small focused modules; one `authorize` table ([`permissions.ts`](src/lib/domain/permissions.ts)). |
-| **Security** | `scrypt` + per-member salt + `timingSafeEqual` ([`passcode.ts`](src/lib/security/passcode.ts)); HMAC tokens with per-purpose keys ([`tokens.ts`](src/lib/security/tokens.ts)); lockout in a Firestore transaction; same error for unknown profile and wrong passcode plus dummy hashing; `HttpOnly; Secure; SameSite=Strict` cookie; Origin check on every write ([`http.ts`](src/lib/server/http.ts)); zod validation with length limits on every input ([`schemas.ts`](src/lib/domain/schemas.ts)); OIDC-verified cron; POST-only one-tap link so mail scanners cannot mark doses; CSP, HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` ([`next.config.ts`](next.config.ts)); HTML-escaped emails; rate limits on login, AI and dose links; least-privilege service account; secrets only in Secret Manager; no personal data in logs. |
-| **Efficiency** | Doses computed on the fly (no write amplification); one Firestore read set per profile per cron run; cached explainer answers; lazy Firestore import; standalone Next.js output on a small Alpine image; `min-instances 0`. |
-| **Testing** | 167 Vitest tests: table-driven domain tests (time zones, midnight boundary, end-dated and non-daily medicines, revoked members, two runs in the same minute), token tamper/expiry tests, service integration tests with `MemoryRepo` + fixed clock, route-handler tests (login, lockout, CSRF, CRUD, cron auth, one-tap link) and component tests with **axe-core**. Coverage on `src/lib`: **94 % lines**. CI: [`.github/workflows/ci.yml`](.github/workflows/ci.yml). |
-| **Accessibility** | Elder Mode (20 px base, ≥ 7:1 contrast, 56 px targets, one big button per dose); skip link; one `h1` per page; landmarks; visible focus ring; `aria-live` status for "Marked as taken"; every input labelled with errors linked by `aria-describedby`; icon + text for every state (no colour-only meaning); read-aloud via Speech Synthesis; Hindi UI with correct `lang`; `prefers-reduced-motion`. Tests: [`tests/components.test.tsx`](tests/components.test.tsx). |
+| **Security** | `scrypt` + per-member salt + `timingSafeEqual` ([`passcode.ts`](src/lib/security/passcode.ts)); HMAC tokens with per-purpose keys ([`tokens.ts`](src/lib/security/tokens.ts)); lockout in a Firestore transaction; same error for unknown profile and wrong passcode plus dummy hashing; `HttpOnly; Secure; SameSite=Strict` cookie; Origin check on every write ([`http.ts`](src/lib/server/http.ts)); zod validation with length limits on every input ([`schemas.ts`](src/lib/domain/schemas.ts)); OIDC-verified cron; POST-only one-tap link so mail scanners cannot mark doses; CSP, HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` ([`next.config.ts`](next.config.ts)); HTML-escaped emails; passcode reset logs out the member's other sessions (session version in the token); rate limits on login, profile creation, AI and dose links keyed by the proxy-appended client address (spoofing `X-Forwarded-For` does not bypass them, verified on Cloud Run); at most 30 reminder emails per recipient per day, and every email says how to stop it; least-privilege service account; secrets only in Secret Manager; no personal data in logs. |
+| **Efficiency** | Doses computed on the fly (no write amplification); one Firestore read set per profile per cron run, profiles processed in bounded parallel batches of 5; cached explainer answers; lazy Firestore import; standalone Next.js output on a small Alpine image; `min-instances 0`. |
+| **Testing** | 172 Vitest tests: table-driven domain tests (time zones, midnight boundary, end-dated and non-daily medicines, revoked members, two runs in the same minute), token tamper/expiry tests, service integration tests with `MemoryRepo` + fixed clock, route-handler tests (login, lockout, CSRF, CRUD, cron auth, one-tap link, AI routes, passcode reset, rate-limit spoofing) and component tests with **axe-core**. Coverage on `src/lib`: **94 % lines**. CI: [`.github/workflows/ci.yml`](.github/workflows/ci.yml). |
+| **Accessibility** | Elder Mode (20 px base, ≥ 7:1 contrast, 56 px targets, one big button per dose); skip link; one `h1` per page; landmarks; visible focus ring; `aria-live` status for "Marked as taken"; every input labelled with errors linked by `aria-describedby`; icon + text for every state (no colour-only meaning); read-aloud via Speech Synthesis; Hindi for navigation, the today view and the explainer, with the `lang` attribute set on the app container; `prefers-reduced-motion`. Tests: [`tests/components.test.tsx`](tests/components.test.tsx). |
 | **Problem statement alignment** | Every sentence of the challenge maps to a feature — see the table above and acceptance rows R1–R12 in [`docs/DESIGN.md`](docs/DESIGN.md). |
 | **Google services** | Cloud Run, Firestore, Gemini on Vertex AI, Cloud Scheduler (OIDC), Secret Manager, IAM, Cloud Build, Artifact Registry, Cloud Logging, Gmail, Google Calendar — see the table above. |
 
@@ -120,6 +120,8 @@ curl -X POST -H "x-cron-key: $CRON_DEV_KEY" http://localhost:3005/api/cron/remin
 
 ## Deploy (Google Cloud)
 
+Scripts: [`scripts/gcp-setup.sh`](scripts/gcp-setup.sh) (APIs, Firestore, service accounts, IAM roles, `SESSION_SECRET` in Secret Manager) and [`scripts/deploy.sh`](scripts/deploy.sh) (Cloud Build source deploy to Cloud Run plus the OIDC Scheduler job). The equivalent commands:
+
 ```bash
 gcloud run deploy carecircle --source . --region asia-south1 --allow-unauthenticated \
   --service-account carecircle-run@PROJECT.iam.gserviceaccount.com \
@@ -140,6 +142,7 @@ gcloud scheduler jobs create http carecircle-reminders --location asia-south1 \
 * **Email:** real Gmail SMTP when `SMTP_USER` / `SMTP_PASS` are configured. Without them the mailer runs in
   **dry-run mode**: it logs that an email would be sent (type only, no address or content) and the rest of the
   flow — including idempotency — runs unchanged.
+* **Hindi** covers navigation, the today view (Elder Mode), status messages and the Gemini explainer. Forms, the circle page and emails are English.
 * **Rate limiting** is in memory per Cloud Run instance. It slows abuse but is not a global limit; the Firestore
   login lockout is the durable control.
 * **CSP** allows `'unsafe-inline'` scripts because Next.js injects small inline bootstrap scripts; there is no
