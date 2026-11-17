@@ -1,7 +1,7 @@
 # CareCircle — Elderly Care & Medication Management Platform
 
-**Live app (Cloud Run):** https://carecircle-838093311454.asia-south1.run.app
-**Health check:** https://carecircle-838093311454.asia-south1.run.app/api/health
+**Live demo: offline.** The Cloud Run deployment was shut down on 2026-11-17, after the hackathon ended. To try the
+app, see [Run locally](#run-locally); to host it again, see [Deploy (Google Cloud)](#deploy-google-cloud).
 
 CareCircle is a smart, interconnected healthcare management platform that helps **elderly individuals manage their
 daily medications, medical appointments and healthcare routines while keeping their family members and caretakers
@@ -161,7 +161,7 @@ gcloud scheduler jobs create http carecircle-reminders --location asia-south1 \
 
 * **Real:** Cloud Run hosting, Firestore storage, Gemini on Vertex AI, Cloud Scheduler with OIDC, Secret Manager,
   scrypt passcodes, lockout, reminder planning and idempotency.
-* **Email:** real Gmail SMTP when `SMTP_USER` / `SMTP_PASS` are configured — the live deployment sends real email (credentials in Secret Manager; verified with a live missed-dose reminder). Without them the mailer runs in
+* **Email:** real Gmail SMTP when `SMTP_USER` / `SMTP_PASS` are configured — the hackathon deployment sent real email (credentials in Secret Manager; verified with a live missed-dose reminder). Without them the mailer runs in
   **dry-run mode**: it logs that an email would be sent (type only, no address or content) and the rest of the
   flow — including idempotency — runs unchanged.
 * **Hindi** covers every screen: the front page, Today, medicines, appointments, care circle, activity, all forms, toasts, confirm questions and the assistant. A test checks that every English text key has a Hindi text. Data people type (medicine and doctor names), server error messages (other than the form messages) and reminder emails stay as entered or in English.
